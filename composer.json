@@ -1,0 +1,27 @@
+{
+    "name": "z77/docs",
+    "description": "z77 framework documentation — AI-optimized handbook, ADRs and per-area topic docs. Install as require-dev to give an AI coding assistant full framework context inside the project.",
+    "type": "library",
+    "keywords": ["php", "framework", "documentation", "ai", "claude", "z77"],
+    "homepage": "https://github.com/z77-ch/z77-framework",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Peter Ruepp",
+            "email": "peter.ruepp@z77.ch"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        }
+    },
+    "support": {
+        "issues": "https://github.com/z77-ch/z77-framework/issues",
+        "source": "https://github.com/z77-ch/docs",
+        "docs": "https://github.com/z77-ch/z77-framework/tree/main/docs"
+    },
+    "readme": "README.md"
+}

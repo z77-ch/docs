@@ -6,7 +6,7 @@
 
 1. `packages/kernel/core/src/Http/Response/FetchResponse.php` — standardized JSON envelope (status, flashes, messages, fields, redirect, data, commands)
 2. `packages/kernel/core/src/Http/Response/EnvelopeFields.php` — trait shared between FetchResponse and HtmlResponse for flashes/messages/commands
-3. `packages/kernel/shared/res/assets/js/core.js` — single client module: fetch + flash/message + popup + field validation + envelope/command dispatch (loaded by every module)
+3. `packages/kernel/shared/res/assets/js/core.js` — single client module: fetch + flash/message + popup + field validation + clipboard + envelope/command dispatch (loaded by every module)
 4. `packages/kernel/core/src/Http/Security/CsrfService.php` — CSRF token generation and validation
 
 ## file map
@@ -32,6 +32,10 @@ All server–browser communication uses a standardized JSON envelope. Two respon
 - **`HtmlResponse`** — HTML body, appends a `<script type="application/json" data-z77-envelope>` block at the end when `flashes`/`messages`/`commands` are populated (via the `EnvelopeFields` trait, shared with `FetchResponse`). `core.js` extracts it before injecting the HTML and dispatches the envelope through the same machinery as the JSON path.
 
 Browser-side `core.js` reads a CSRF token from a `<meta>` tag once at init and attaches it as `X-CSRF-Token` on every POST. `AccessGuard` validates CSRF centrally for all Fetch requests.
+
+⚠️ **A hand-written `fetch()` must send that header too — a token in the body does NOT satisfy the guard** (FETCH-CSRF-001, found 2026-08-12 in AXO3's member area). `AccessGuard::enforce()` runs before any controller and reads the token from `X-CSRF-Token` ONLY (`Request::getCsrfToken()`); the answer to a missing header is an envelope carrying `CSRF token invalid` — as a **flash**, not a message, so a client that only reads `messages` shows nothing and the switch merely flickers back.
+
+The trap is that this is invisible to a script test: the mode comes from `Sec-Fetch-Mode` (`resolveRequestMode()`), which only a real browser sends. curl/PowerShell/Postman land in Page mode, walk past the guard, and prove nothing about the browser. **Verify anything fetch-driven in a browser, or send `Sec-Fetch-Mode: cors` explicitly.** Keep the body field as well when the action validates in-action (both AXO3 member switches do).
 
 - **One JS module**: shared `core.js` contains the fetch communicator, flash/message channels, popup wiring, field validation, envelope/command dispatch, and `data-fetch-*` document-wide wiring. Action-scoped scripts (e.g. `navigation/edit.js`) are lazy-loaded via the `load-script` command and register init functions in `_Z77.scriptInit`.
 - Fetch requests skip navigation lookup → use convention routing directly.
@@ -222,6 +226,16 @@ Commands are executed in array order.
 | `data-z77-field-wrapper` | any element wrapping a labelled input | anchor for `mark()`/`clear()` field-validation |
 | `data-z77-field-error` | `<small>` (or similar) inside a wrapper | error-message slot (auto-created if absent) |
 | `data-check-url="/url"` | `<form>` | blur-validates each input via POST to this URL |
+| `data-copy="<selector>"` | any clickable | copies the named element's text to the clipboard (`_Z77.core.clipboard`); selects it first, reports via flash |
+
+**Copy to clipboard** — `data-copy` names the element that HOLDS the text; the trigger is any clickable:
+
+```html
+<textarea id="snippet-a1b2" readonly>…</textarea>
+<button type="button" data-copy="#snippet-a1b2">Kopieren</button>
+```
+
+The source may be an `<input>`/`<textarea>` (its `value`) or any plain element (its `textContent`). `_Z77.core.clipboard.copy(el)` selects the source first — that shows the user what was copied AND gives the legacy path a selection: `navigator.clipboard` exists only in a secure context, so over plain http (a dev host) `document.execCommand('copy')` is the only way. Success and failure are reported through the flash channel (`js.copied` / `js.copyFailed`), so no module needs its own feedback. Inside a popup the selector is resolved within the popup body first, then document-wide.
 
 **Default POST URL** — server-rendered popup forms can omit the value:
 
@@ -443,6 +457,7 @@ User submits
 - When using entity-scoped CSRF → MUST validate via `CsrfService::validateEntityToken()`; MUST NOT skip validation on the remove endpoint
 - When controller needs to update a specific DOM element after save → MUST use `addCommand('replace-html', ...)` with a rendered partial; MUST NOT instruct JS to `location.reload()` unless structure change makes targeted update impractical
 - When controller-specific JS calls the server → MUST use `_Z77.core.fetch.post()` / `.get()`; MUST NOT define a local `fetch` wrapper
+- When a page offers a copy-to-clipboard control → MUST use `data-copy="<selector>"` on the trigger; MUST NOT wire `navigator.clipboard` in a per-module script or an inline `<script>` (COPY-001)
 - When an inline status field (e.g. `active`) is toggled directly from a list row → MUST use `data-fetch-toggle="/url"` on the checkbox (server-authoritative: POST persists and returns a `set-class` command for the row; the checkbox reverts on a non-success response); the endpoint is `#[Fetch, HttpMethod('POST')]`, relies on the global CSRF header, and MUST NOT require an entity-scoped token (non-destructive). MUST NOT wire the change handler in a per-controller JS file.
 - When closing a popup → MUST be a deliberate discard: a `[data-popup-close]` control (Abbrechen / ×) or the ESC key (both accepted, POPUP-ESC-001); a backdrop click does NOT close it (POPUP-CLOSE-001) and MUST NOT be relied on as a discard path (it discarded edits on a stray click or a text-selection drag onto the backdrop)
 
@@ -464,6 +479,8 @@ User submits
 - **POPUP-ESC-001** — resolved 2026-06-07 (by decision, no code change). The native `<dialog>` (`showModal()`) closes on the ESC key. Decided to keep it: ESC is a deliberate keyboard action, not the accidental-discard path that POPUP-CLOSE-001 removed for backdrop clicks. Both `[data-popup-close]` (Abbrechen / ×) and ESC are accepted discard paths; only the backdrop click is excluded.
 
 - **FORM-BRACKET-001** — resolved 2026-06-10. `_z77CollectFormData` flattened every input name verbatim, so the translation editor's per-language fields (`name="value[de]"`) arrived as literal keys `value[de]`/`value[fr]` instead of a nested `value` map. `TranslationController::readValues()` reads `$body['value']` as an array → got `null` → empty values → `saveUiEntry()` wrote the default language as `''` and dropped every non-default key. Symptom: editing any UI text (or slug), saving, all fields blank. Fix in `core.js`: a `put(name,value)` helper parses single-level bracket notation (`value[de]` → `data.value.de`) for the radio + scalar branches; checkbox-array/boolean behaviour unchanged. Applied to `core.js` + hand-maintained `core.min.js` (prod loads `.min.js`) in `packages/kernel/shared` and the installed `skeleton/public` copies. The translation editor was the first/only consumer of bracket-name inputs.
+
+- **COPY-001** — added 2026-08-08. Copy to clipboard is a shared channel (`_Z77.core.clipboard`, markup `data-copy="<selector>"`), not a per-module script: its first consumer (AXO3's widget-snippet lists, backend and member area) would otherwise have carried an inline `<script>` per page, and the next consumer another one. Selection-first with an `execCommand('copy')` fallback, because `navigator.clipboard` is undefined outside a secure context — over plain http (a dev host) the legacy path is the only one. Feedback rides the flash channel (`js.copied` / `js.copyFailed`), so a module needs markup and nothing else. Applied to `core.js` + hand-maintained `core.min.js` in `packages/kernel/shared` and the installed `skeleton/public` copies.
 
 ## pending
 

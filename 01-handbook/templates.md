@@ -10,6 +10,10 @@
 `AbstractBaseController::html(array $context)` injects variables into every template.
 The context is passed through `LayoutManager` → `HtmlView` → `extract()`.
 
+Context keys may carry any name. The render scope holds only prefixed locals
+(`$z77TplPath` / `$z77TplContext`) besides `$this`, so nothing a controller passes can be
+shadowed by the renderer's own variables.
+
 ---
 
 ## Template location (group-nested)
@@ -129,6 +133,36 @@ Always use `e()` — never `htmlspecialchars()` directly:
 ```
 
 For trusted HTML: `<?= raw($html) ?>`
+
+### `brText()` — escaped flow text with hand-placed, viewport-aware breaks
+
+German marketing copy often needs hand-placed line breaks whose position differs
+per viewport. `brText()` keeps the copy an escaped plain string (stored in
+controller data arrays, not as markup) and turns a small set of fixed markers
+into break tags at output time. It escapes the whole string exactly like `e()`
+first, then substitutes only these tokens — XSS safety is identical to `e()`.
+
+| Marker | Output | Break on |
+|---|---|---|
+| `[br]` | `<br>` | every viewport |
+| `[br-m]` | `<br class="z77-br--m">` | mobile only (≤ 767px) |
+| `[br-d]` | `<br class="z77-br--d">` | desktop side only (≥ 768px, incl. tablet) |
+| `[shy]` | `&shy;` | soft-hyphen wrap hint (only when the line wraps there) |
+
+```php
+// controller: plain escaped string, markup-free
+'copy' => 'Frisch saniert:[br-d]Die Lyss-Strasse 51-59[br-m]am Bielersee',
+```
+```php
+// template: opt in per output site
+<?= brText($card['copy']) ?>
+```
+
+Opt in per output site — `e()` everywhere else; a template only changes
+behaviour when it switches to `brText()`. **Flow text only:** never in attribute
+values (`aria-label`, `title`, `alt`) or at `nl2br()` sites. The
+`z77-br--m` / `z77-br--d` visibility is a CSS contract owned by the consuming
+project — see [`../topics/css-frontend.md` → responsive text breaks](../topics/css-frontend.md#responsive-text-breaks-z77-br).
 
 ---
 

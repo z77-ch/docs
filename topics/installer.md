@@ -12,8 +12,10 @@
 
 SOURCE=/packages/kernel/core/src/Installer/Install.php
 SOURCE=/packages/kernel/core/res/CLAUDE.project.md
+SOURCE=/packages/kernel/core/cron/run.php
 SOURCE=/packages/kernel/core/src/Config/bootstrap.default.inc.php
 SOURCE=/packages/kernel/core/src/Config/moduleManager.default.inc.php
+SOURCE=/packages/kernel/core/src/Config/systemConfig.default.inc.php
 SOURCE=/packages/kernel/core/data/framework/routing/navigation.default.json
 SOURCE=/packages/kernel/core/data/framework/seo/metadata.default.json
 SOURCE=/skeleton/composer.json
@@ -44,20 +46,22 @@ Runs as a Composer post-install/post-update hook. Reads `extra` config from `com
 | 3 | `buildPaths()` | override paths first, vendor paths second (CE principle) |
 | 4 | `copyFiles()` | `public/` entry files → project web root — **first install only** (`public/` absent; ADR-024). On update (`public/` present) instead: `reportAssetDrift()` collects the read-only changed/new asset list; rendered at the end (ADR-025) |
 | 5 | `createDirectories()` | override dirs, moduleTree, logs (always) + publicAssetTree asset copy (**first install only**) |
-| 6 | `writeBootstrapConfig()` | → `config/bootstrap.inc.php` |
-| 7 | `writeModuleManagerConfig()` | → `config/moduleManager.inc.php` |
-| 8 | `writeAuthConfig()` | → `config/auth.inc.php` — **seed-once**: skipped if it already exists (INST-CONFIG-001) |
-| 9 | `writeI18nConfig()` | → `config/i18n.inc.php` — **seed-once**: skipped if it already exists (INST-CONFIG-001) |
-| 10 | `writeBackupConfig()` | → `config/backup.inc.php` — **seed-once**: backup policy (retention, excludes, database), see [`backup.md`](backup.md) |
-| 11 | `writeMailConfig()` | → `config/mail.inc.php` — **seed-once**: mail transport + sender identity (`enabled=true`, `transport='mail'`, empty `fromAddress` to fill per project), see [`mail.md`](mail.md) |
-| 12 | `writeFileFinderConfig()` | → `config/fileFinder.inc.php` |
-| 13 | `writeDataFiles()` | seed `data/*.json` (skip if already exist) |
-| 14 | `provisionAdmin()` | create admin (interactive) or write `SETUP_TOKEN` (non-interactive) — skip if `loginUsers.json` exists |
-| 15 | `writeDebugFlag()` | create/remove `data/framework/debug.flag` per `debug` |
-| 16 | `seedProjectClaudeMd()` | seed `CLAUDE.md` (project context for AI assistants) from the kernel template — **seed-once**, never overwritten |
-| 17 | `renderAssetDriftNotice()` | print the collected asset drift (step 4) as ONE coloured notice (ADR-025) |
-| 18 | `promptAssetDeploy()` | interactive-only, per-file, default-No deploy of drifted assets (ADR-026) |
-| 19 | `offerDocsInstall()` | opt-in `z77/docs` require-dev (interactive: ask, default **Yes**; non-interactive: print the manual command) — **last output of the run** |
+| 6 | `seedCronEntry()` | seed `cron/run.php` from the kernel template — **seed-once**: the cron entry for hosts whose panel takes one command and no `cd` (the starter `chdir()`s into the project and hands over to `vendor/bin/z77-run`), see [`jobs.md`](jobs.md) |
+| 7 | `writeBootstrapConfig()` | → `config/bootstrap.inc.php` |
+| 8 | `writeModuleManagerConfig()` | → `config/moduleManager.inc.php` |
+| 9 | `writeAuthConfig()` | → `config/auth.inc.php` — **seed-once**: skipped if it already exists (INST-CONFIG-001) |
+| 10 | `writeI18nConfig()` | → `config/i18n.inc.php` — **seed-once**: skipped if it already exists (INST-CONFIG-001) |
+| 11 | `writeBackupConfig()` | → `config/backup.inc.php` — **seed-once**: backup policy (retention, excludes, database), see [`backup.md`](backup.md) |
+| 12 | `writeMailConfig()` | → `config/mail.inc.php` — **seed-once**: mail transport + sender identity (`enabled=true`, `transport='mail'`, empty `fromAddress` to fill per project), see [`mail.md`](mail.md) |
+| 13 | `writeSystemConfig()` | → `config/systemConfig.inc.php` — **seed-once**: installation identity (`canonicalBaseUrl`), the one config NOT fed from `composer.json` (ADR-030) |
+| 14 | `writeFileFinderConfig()` | → `config/fileFinder.inc.php` |
+| 15 | `writeDataFiles()` | seed `data/*.json` from EVERY installed framework package's data roots (skip if already exist; INST-SEED-001) |
+| 16 | `provisionAdmin()` | create admin (interactive) or write `SETUP_TOKEN` (non-interactive) — skip if `backendUsers.json` exists |
+| 17 | `writeDebugFlag()` | create/remove `data/framework/debug.flag` per `debug` |
+| 18 | `seedProjectClaudeMd()` | seed `CLAUDE.md` (project context for AI assistants) from the kernel template — **seed-once**, never overwritten |
+| 19 | `renderAssetDriftNotice()` | print the collected asset drift (step 4) as ONE coloured notice (ADR-025) |
+| 20 | `promptAssetDeploy()` | interactive-only, per-file, default-No deploy of drifted assets (ADR-026) |
+| 21 | `offerDocsInstall()` | opt-in `z77/docs` require-dev (interactive: ask, default **Yes**; non-interactive: print the manual command) — **last output of the run** |
 
 ## frameworkPrefix filter
 
@@ -95,22 +99,22 @@ All failures throw `\RuntimeException` — no silent errors:
 
 | Type | Path | Behaviour |
 |---|---|---|
-| Config (regenerate) | `config/*.inc.php` except `i18n.inc.php` / `auth.inc.php` / `backup.inc.php` | regenerated on every install |
-| Config (seed-once) | `config/i18n.inc.php`, `config/auth.inc.php`, `config/backup.inc.php` | user-adjustable (project languages / auth policy / backup policy) — written once, never overwritten (INST-CONFIG-001) |
+| Config (regenerate) | `config/bootstrap.inc.php`, `config/moduleManager.inc.php`, `config/fileFinder.inc.php` | regenerated on every install |
+| Config (seed-once) | `config/i18n.inc.php`, `config/auth.inc.php`, `config/backup.inc.php`, `config/mail.inc.php`, `config/systemConfig.inc.php` | user-adjustable (project languages / auth policy / backup policy / mail routes / installation identity) — written once, never overwritten (INST-CONFIG-001) |
 | Data | `data/framework/**/*.json` | written once — never overwritten |
 
-> The blanket "config regenerated on every install" holds only for framework-controlled config (`bootstrap`, `moduleManager`, `fileFinder`). `i18n.inc.php` and `auth.inc.php` are developer-adjustable, so they are seed-once — deliberately decoupled from the `debug` flag (a caching/dev switch, not an overwrite policy).
+> The blanket "config regenerated on every install" holds only for framework-controlled config (`bootstrap`, `moduleManager`, `fileFinder`) — those are fed from `composer.json`. Everything a developer or operator adjusts is seed-once. `systemConfig.inc.php` (ADR-030) is the strongest case: it holds what differs per INSTALLATION, so it is the one config file that is deliberately not fed from `composer.json` at all — that file is committed, and staging and production could then not differ.
 
 Each generated config file carries a policy note in its header (`header()` + `NOTE_REGENERATE` / `NOTE_SEED_ONCE`): regenerate-always files warn "DO NOT EDIT — configure via composer.json"; seed-once files state they are safe to edit and never overwritten.
 
 ## admin provisioning
 
-No credential is seeded — `loginUsers.default.json` does not exist (removed in
+No credential is seeded — `backendUsers.default.json` does not exist (removed in
 Phase 4; the framework is open source, so anything shipped is public). Instead
 `provisionAdmin()` creates the first account at install time — with role
 **`superUser`** (ADR-021: the installation/DMS governor; `admin` is a normal,
 grant-managed role and is never provisioned; the username stays `admin`). It is
-skipped whenever `data/framework/auth/loginUsers.json` already exists (re-install /
+skipped whenever `data/framework/auth/backendUsers.json` already exists (re-install /
 update never touch the user store).
 
 | Context (`io->isInteractive()`) | Action |
@@ -118,7 +122,7 @@ update never touch the user store).
 | interactive | `provisionAdminInteractive()` — username `admin`, roles `['superUser']`, hidden password prompt (twice, must match), `PasswordPolicy::evaluate()` → store JSON with `password_weak` flag, bcrypt cost 12 |
 | non-interactive | `provisionSetupToken()` — write a random 32-byte hex `SETUP_TOKEN` under `data/framework/auth/` (never `public/`); no account until the token-gated `/backend/system/setup/setup` runs |
 
-The store is written as plain JSON matching the `LoginUser` shape (snake_case) —
+The store is written as plain JSON matching the `BackendUser` shape (snake_case) —
 no DI / EntityManager boot at install time. The non-interactive path is consumed
 by `SetupController` (first-run setup), which validates the token, creates the
 account (also role `superUser`), and deletes the token. See [`security.md`](security.md).
@@ -271,4 +275,12 @@ Installer creates the override dirs, registers the module in `moduleManager.inc.
   - DONE: `config/i18n.inc.php` → seed-once (`writeI18nConfig()` skips if it exists). Defines the project's languages, which the developer adapts after install; an update must not clobber that.
   - DONE: `config/auth.inc.php` → seed-once (`writeAuthConfig()` skips if it exists). Holds installation-wide auth policy (e.g. `passwordTier`) the developer adapts after install.
   - DONE: `copyFiles()` (public entry files) + public asset copy → seed-once on first install only (ADR-024, INST-ASSET-002). `public/` is developer-owned; the installer never overwrites it.
-  - TODO: classify the remaining framework-derived config targets — `bootstrap.inc.php`, `moduleManager.inc.php`, `fileFinder.inc.php` (regenerate-always is likely correct, but confirm each carries no developer-adjusted value before publication), plus `writeDataFiles()`.
+  - TODO: classify the remaining framework-derived config targets — `bootstrap.inc.php`, `moduleManager.inc.php`, `fileFinder.inc.php` (regenerate-always is likely correct, but confirm each carries no developer-adjusted value before publication).
+  - DECIDED 2026-08-08: `writeDataFiles()` stays **seed-once at file level** — the installer never merges records into an existing runtime file. The `merge` class is served by a separate, manual data import in the backend (ADR-032). Consistent with ADR-024/025: the installer reports, the developer decides.
+
+- **INST-SEED-001** — resolved 2026-08-08. `writeDataFiles()` now walks **every installed framework package**: data roots are derived from each package's framework psr-4 paths via the same `stripSrc` logic `buildPaths()` uses (`core/src` → `{install}/core/data`, `src` → `{install}/data`; new helper `frameworkDataRoots()`, install paths from Composer's `InstallationManager`, deduped, metapackages skipped). Previously only the kernel's own `core/data` was scanned, so module seeds never reached a project — concretely `packages/module-dms/data/documents/folders.default.json` (the DMS Drive root). On a rel-path collision across packages the first wins; seed-once protects existing runtime data either way. Verified in the skeleton: removed `data/documents/folders.json` → `composer install` seeds it from module-dms (Drive root, `key: "drive"`, `system: true`); re-install skips everything (0 writes).
+
+- **INST-IMPORT-001** — resolved 2026-08-08 (ADR-032 phases 1–6 built). The record-level `merge`
+  answer is the backend data import: `/backend/service/import/list` (SUPER_USER), core in
+  `Z77\Shared\Import`. Single source of truth from here: [`import.md`](import.md). Remaining
+  v2 work (mysqldump reader, `ImportMapping`, upload form) is tracked THERE, not here.

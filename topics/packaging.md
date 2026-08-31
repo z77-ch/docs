@@ -1,6 +1,6 @@
 # packaging
 
-2026-07-16
+2026-08-26
 
 Public since 2026-07-15: the monorepo and all split repos are public on GitHub and every package (`z77/kernel`, the three modules, `z77/skeleton`, `z77/docs`) is registered on Packagist with release tags (`1.0.x`). `z77-ch/kernel` + `module-frontend/backend/dms` are the active split targets; the obsolete `z77-ch/core`, `/shared`, `/persistence` repos are archived (read-only), superseded by kernel.
 
@@ -18,6 +18,9 @@ SOURCE=/packages/module-frontend/composer.json
 SOURCE=/packages/module-backend/composer.json
 SOURCE=/packages/module-dms/composer.json
 SOURCE=/skeleton/composer.json
+SOURCE=/tools/build-stamp.php
+SOURCE=/packages/kernel/shared/src/Build/BuildInfo.php
+SOURCE=/packages/module-backend/res/view/templates/partials/shell/topbar.tpl.php
 
 ## mental model
 
@@ -31,6 +34,18 @@ The monorepo `z77-ch/z77-framework` is the single development source. On every p
 - `z77-ch/z77-skeleton` (Packagist `z77/skeleton`) is **not a split target** — a separate, hand-maintained repo (README + `composer.json` only, everything else is installer-generated). It is committed and tagged independently of the monorepo.
 - `z77/docs` ships the documentation itself (`docs/composer.json` at the top of `docs/`, no autoload). Projects consume it as **require-dev** — offered by the installer (`offerDocsInstall()`, see [`installer.md`](installer.md)) so an AI coding assistant has the full framework context under `vendor/z77/docs`, version-matched to the code packages via the shared tags.
 - Vendor namespace is `z77/*` (e.g. `z77/kernel`); GitHub org is `z77-ch`. The two intentionally differ — repo name need not equal package name for VCS repositories.
+
+## build stamp
+
+A deploy build copies WORKING TREES into `vendor/z77/*`. Nothing else records which state that was: for a `path` repo `composer.lock` stores a content hash, not a commit. `tools/build-stamp.php` writes that fact into **`vendor/z77/build.json`**, and `Z77\Shared\Build\BuildInfo` reads it back; the backend's service-panel footer is the one consumer today (it used to print a hard-wired `z77 · Version 1.0.0`, unmaintained for months).
+
+- The stamp lives INSIDE `vendor/` on purpose — `vendor/` is uploaded as a whole, so the statement can never travel separately from the thing it describes. An `override/`-only upload correctly leaves it untouched.
+- Shape: `built_at` (unix) plus one object per source tree — `commit` (full hash or `null`), `branch`, `dirty`, `committed_at`. Unix timestamps, so no locale or timezone parsing anywhere in the chain.
+- **`dirty` is the load-bearing field.** A deploy build copies a working tree, not a commit; a bare hash would name a state that was never shipped. `BuildInfo::label()` renders it as a trailing `+`.
+- **No stamp = development checkout.** There the junctions point at a tree that can differ between two requests, so there is nothing true to state: `BuildInfo::current()` returns `null` and the panel says «Entwicklung», never a stale deploy date. `vendor-dev.bat` deletes the file for exactly that reason.
+- Failure is loud but never fatal: no `git`, no repository, unwritable target → `commit: null`, the writer exits 0 with a warning, the panel says «unbekannt». A missing stamp must not block a deploy, and an empty string would read as a statement.
+- This is provenance, NOT a release number. Tags exist (`1.0.0` … `1.2.0`) but stopped in July; while packages ship as `dev-main` from `path` repos, the commit is the only truthful answer.
+- Verified by a since-retired harness, `tests/build-info.php` (37 checks — every broken-file shape, dirty vs clean, BOM, and the writer driven against a throwaway git repository).
 
 ## split flow
 
@@ -56,6 +71,11 @@ Everything resolves from Packagist; `composer require z77/module-frontend:^1.0` 
 - When a client project consumes these packages → MUST use Packagist (public since 2026-07-15) and MUST NOT add `vcs`/`path` repository entries for `z77/*` — those were the pre-release consume paths.
 - When releasing a change in `packages/` → MUST tag the monorepo (`x.y.z`) and push the tag; the workflow propagates it to the 4 split repos and Packagist picks it up. A push without a tag only updates `dev-main`.
 - When changing the skeleton (`README.md` / `composer.json`) → MUST commit and tag in `z77-ch/z77-skeleton` itself (not a split target) AND mirror behaviour-relevant changes in the monorepo's `skeleton/composer.json` (dev parity).
+- When a project's `vendor-deploy.bat` gains a new path-repo package → MUST add it to the `tools/build-stamp.php` call as another `name=path` pair, or the panel stays silent about that package's state.
+- When building a deployable `vendor/` → MUST run `tools/build-stamp.php` AFTER the real copies are in place, and MUST NOT hand-edit `vendor/z77/build.json` (it describes a build; an edited one describes nothing).
+- When restoring dev junctions → MUST delete `vendor/z77/build.json` (`vendor-dev.bat` does), or the local backend reports the last deploy's date for a working tree that has moved on.
+- When displaying the stamp → MUST show the `dirty` marker with the commit and MUST NOT render an empty string for an unknown commit; `BuildInfo::label()` returns `unbekannt` for that case.
+- When adding a CLI binary to a package's `bin` list → MUST run `composer update z77/<pkg>` in every consuming project; `composer install` and `vendor-deploy.bat` do NOT create the new `vendor/bin` entry (PKG-005).
 
 ## known issues
 
@@ -63,6 +83,8 @@ Everything resolves from Packagist; `composer require z77/module-frontend:^1.0` 
 - **ARCH-PKG-002** — resolved 2026-07-09 by ADR-023. The former circular triangle `core ↔ shared ↔ persistence` is gone: the three ship as one `z77/kernel` package, so their internal references are no longer a Composer dependency. Modules depend downward on the single foundation.
 - **PKG-003** — resolved 2026-07-15 by the public release: the split repos are public, dist zipballs download without a token, the `404 from dist` warnings are gone.
 - **PKG-004** (open, first hit at release 1.2.0): `git push && git push origin <tag>` starts TWO split workflow runs (branch push + tag push) that race each other pushing to the same split repos — the loser gets `cannot lock ref … but expected …` and its run fails partially. Content ends up correct only in combination; failed jobs must be re-run (`gh run rerun <id> --failed`, tag run first, then verify each split repo carries the tag: `gh api repos/z77-ch/{repo}/tags`). Proper fix ideas: push commit and tag atomically (`git push origin main <tag>` still triggers two runs — GitHub delivers separate push events) or add a `concurrency` group to the workflow so runs serialize. Until fixed: after every tagged release check both runs are green.
+
+- **PKG-005**: don't assume a new `bin` entry reaches `vendor/bin` through `composer install` or `vendor-deploy.bat` — it does not. Composer builds `vendor/bin` from the bin list recorded in `composer.lock` / `vendor/composer/installed.json`, which `install` reads instead of re-resolving. Adding `bin/z77-run` to `packages/kernel/composer.json` left axo3 with the package file present (`vendor/z77/kernel/bin/z77-run`) but no proxy in `vendor/bin` — the lock still said `bin/z77-backup` only. Fix: `composer update z77/kernel` in the project, then re-run the deploy. The direct path (`php vendor/z77/kernel/bin/z77-run`) works regardless; `vendor/bin` exists so a cron line survives a package rename.
 
 ## pending
 

@@ -5,10 +5,10 @@
 ## entry
 
 1. `packages/module-backend/src/Ui/Controllers/BackendAbstractController.php` — base class for all backend controllers: auto-injects `userPreferences`, `bePalette`, `beTheme` into context
-2. `packages/kernel/shared/src/Services/CurrentUserService.php` — per-request cache for `LoginUser` entity + preferences logic
+2. `packages/kernel/shared/src/Services/CurrentUserService.php` — per-request cache for `BackendUser` entity + preferences logic
 3. `packages/module-backend/src/Ui/Controllers/System/SystemController.php` — clear-cache, debug-toggle, save-preferences
 4. `packages/module-backend/src/App/Config/backendConfig.inc.php` — module config (default group, group defaults, role hierarchy)
-5. `packages/module-backend/src/Ui/Controllers/System/LoginUserController.php` — user administration (flat list, add/edit/delete, drag&drop reorder)
+5. `packages/module-backend/src/Ui/Controllers/System/BackendUserController.php` — user administration (flat list, add/edit/delete, drag&drop reorder)
 
 ## file map
 
@@ -43,24 +43,24 @@ SOURCE=/packages/module-frontend/res/scss/admin-overlay.scss
 SOURCE=/packages/module-backend/res/assets/js/appearance.js
 SOURCE=/packages/module-backend/res/scss/components/_list.scss
 SOURCE=/packages/module-backend/res/assets/js/navigation/list.js
-SOURCE=/packages/module-backend/src/Ui/Controllers/System/LoginUserController.php
-SOURCE=/packages/module-backend/res/view/templates/System/LoginUserController/listAction.tpl.php
-SOURCE=/packages/module-backend/res/view/templates/System/LoginUserController/edit.tpl.php
-SOURCE=/packages/module-backend/res/view/templates/System/LoginUserController/confirmDelete.tpl.php
-SOURCE=/packages/module-backend/res/assets/js/login-user/list.js
+SOURCE=/packages/module-backend/src/Ui/Controllers/System/BackendUserController.php
+SOURCE=/packages/module-backend/res/view/templates/System/BackendUserController/listAction.tpl.php
+SOURCE=/packages/module-backend/res/view/templates/System/BackendUserController/edit.tpl.php
+SOURCE=/packages/module-backend/res/view/templates/System/BackendUserController/confirmDelete.tpl.php
+SOURCE=/packages/module-backend/res/assets/js/backend-user/list.js
 SOURCE=/packages/module-backend/res/assets/js/password-meter.js
-SOURCE=/packages/kernel/shared/src/Validators/LoginUserValidator.php
+SOURCE=/packages/kernel/shared/src/Validators/BackendUserValidator.php
 SOURCE=/packages/kernel/shared/src/Auth/PasswordPolicy.php
 SOURCE=/packages/kernel/shared/src/ValueObjects/UserPreferences.php
 SOURCE=/packages/module-backend/src/App/Config/Palettes.php
 
 ## mental model
 
-The backend is the admin UI. URL schema is 4 segments — `/backend/{group}/{controller}/{action}` (see ADR-005). Default group is `system` (set in `backendConfig`); each declared group has a default controller in `groupDefaults`; the default action is the module-level convention `list` — a controller config entry states only a **deviation** (role or defaultAction; AUTH-B003, see [`routing.md`](routing.md)). Layout follows the Werkbank design: topbar (module tabs) + subnav (left tree) + main + service panel (avatar dropdown). The service panel exposes Debug-Toggle, Noindex-Toggle (site-wide crawl block, see [`metadata.md`](metadata.md) SEO-NOINDEX-001), Clear-Cache, and Logout. The Noindex-Toggle live-updates its indicator AND the persistent shell Störer (`#js-noindex-banner`) via `system/cache.js`.
+The backend is the admin UI. URL schema is 4 segments — `/backend/{group}/{controller}/{action}` (see ADR-005). Default group is `system` (set in `backendConfig`); each declared group has a default controller in `groupDefaults`; the default action is the module-level convention `list` — a controller config entry states only a **deviation** (role or defaultAction; AUTH-B003, see [`routing.md`](routing.md)). Layout follows the Werkbank design: topbar (module tabs) + subnav (left tree) + main + service panel (avatar dropdown). The service panel exposes Debug-Toggle, Noindex-Toggle (site-wide crawl block, see [`metadata.md`](metadata.md) SEO-NOINDEX-001), Clear-Cache, and Logout. The Noindex-Toggle live-updates its indicator AND the persistent shell Störer (`#js-noindex-banner`) via `system/cache.js`. Störer bands share one component (`.be-shell-banner`, [`css-backend.md`](css-backend.md)) and one body slot each; the second user is the missing installation identity (`systemBanner`, ADR-030) — it has no toggle and is rendered only when it applies.
 
 - All backend Fetch endpoints go through `SystemController` (clear-cache, toggle-debug, save-preferences) under group `system`.
 - Controllers are organised into group subdirectories: `Ui/Controllers/System/` (`Dashboard`, `System`, `Login`), `Ui/Controllers/Content/` (`Navigation`). `BackendAbstractController` stays flat in `Ui/Controllers/`.
-- User preferences (palette, dark-mode) are persisted server-side per `LoginUser`. `CurrentUserService` caches `LoginUser` per request.
+- User preferences (palette, dark-mode) are persisted server-side per `BackendUser`. `CurrentUserService` caches `BackendUser` per request.
 - Palette + theme are applied via `data-be-palette` / `data-be-theme` attributes on the `<html>` element — written server-side by `BackendAbstractController::html()` from `userPreferences`. CSS selectors in `_colors.scss` activate the matching token set on first paint (no FOUC, no JS needed).
 - `appearance.js` updates the same `<html>` data-attributes on user clicks (instant CSS switch via selectors), then POSTs to `/backend/system/system/save-preferences` for persistence (fire-and-forget). No JS-side token mirror — `_colors.scss` is single source of truth.
 - Backend JS: shared `core.js` (fetch + flash/message + popup + field validation + envelope dispatch — see [`fetch.md`](fetch.md)) + shared `panel-toggle.js` (generic, data-attribute dropdown/collapse toggle — drives the topbar environment switcher, the avatar service panel, and the avatar "Info"/"Aussehen" collapsibles) + `appearance.js` + `system/cache.js`. `partials/footer.tpl.php` holds the remaining inline bits (hamburger overlay).
@@ -89,7 +89,8 @@ Backend groups exist for UI organisation only — they are NOT business-domain b
 | `MetaDataController` | `content` | `list` | Per-page SEO `MetaData` CRUD. `list` is "by navigation point", scoped to **public** environments (module config `'public' => true`) and grouped by level-0 environment, with a `?env` filter bar. add / edit / confirmDelete / remove. URL: `/backend/content/meta-data/{action}` (multi-word kebab segment). Identity (navigation_id, language) immutable on edit. See [`metadata.md`](metadata.md). |
 | `TranslationController` | `content` | `list` | i18n catalog editor: UI strings + route slugs (the two `data/framework/i18n/` families). `list` shows both as tables; a shared `?kind=ui\|slug` add / edit / confirmDelete / remove modal. Persistence + slug validation in the `TranslationCatalog` core service (NOT an `#[Entity]`). URL: `/backend/content/translation/{action}`. See [`translation.md`](translation.md) TRANS-TOOL-001. |
 | `BackupController` | `service` | `list` | Installation backups (data / db / full): history per type (directory scan), run / download / confirmDelete / remove + `actionsAction` hub. Thin glue over the kernel `BackupService` (shared with the CLI entry). ALL actions `SUPER_USER`. URL: `/backend/service/backup/{action}`. See [`backup.md`](backup.md). |
-| `EmailSettingsController` | `service` | `list` | Form-mail settings editor (EmailService v2). List mirrors the navigation/login-user layout: `be-tree--hub` rows with an inline **active switch** (`toggle-active`, only where an override exists) + the ⋮ **actions hub** (`actions` → edit / confirm-reset). Per form key the effective to/cc/subject + routeKey routing; entity override vs. config seed with origin «Backend» / «Backend (inaktiv)» / «Config». Reset behind a confirm modal. Role ADMIN (module default — no config entry; owner decision E1). URL: `/backend/service/email-settings/{action}`. Navigation seed `id:27` («E-Mail» under Service) — existing projects add the entry via the backend. See [`mail.md`](mail.md). |
+| `EmailSettingsController` | `service` | `list` | Form-mail settings editor (EmailService v2). List mirrors the navigation/backend-user layout: `be-tree--hub` rows with an inline **active switch** (`toggle-active`, only where an override exists) + the ⋮ **actions hub** (`actions` → edit / confirm-reset). Per form key the effective to/cc/subject + routeKey routing; entity override vs. config seed with origin «Backend» / «Backend (inaktiv)» / «Config». Reset behind a confirm modal. Role ADMIN (module default — no config entry; owner decision E1). URL: `/backend/service/email-settings/{action}`. Navigation seed `id:27` («E-Mail» under Service) — existing projects add the entry via the backend. See [`mail.md`](mail.md). |
+| `FormLogController` | `service` | `list` | The geo-guard surface: every submit of every geo-guarded public form (country, outcome, identity, origin) with two tallies and a `?form=` filter, and EDITS the country blocklist from them: `confirm-block` / `block` / `confirm-unblock` / `unblock`, entity-CSRF guarded, reason prefilled from the tally (window named). Logic + templates live HERE (like `BackupController` — log and blocklist are kernel data, no ADR-018 mount). An unreadable blocklist renders as a visible failure state («Regel ist AUS»), never a 500 — the write side still throws. Role ADMIN (module default — the page shows IPs and, where a form opted in, addresses). URL: `/backend/service/form-log/{action}`. Navigation seed `id:30` («Formular-Protokoll» under Service) — existing projects adopt the entry via the import. See [`forms.md`](forms.md) / [`geoip.md`](geoip.md). |
 
 `NavigationController` extends **`AbstractTreeEntityController`** (which extends `BackendAbstractController`): it provides the generic `moveAction` (resolve → cycle-guard → `TreeService::reorderInto` → renumber old group → persist) once; the subclass supplies `treeRepo()`, `treeService()`, and the entity-specific `applyMovePolicy()` (cross-slot + ref-parent guards). `NavigationGroupController` was removed with `NavigationGroup` (ADR-022); the base is kept as the reuse seam for future tree-entity controllers. Mechanics vs. policy — see [`tree.md`](tree.md) / ADR-009.
 
@@ -101,7 +102,7 @@ Backend groups exist for UI organisation only — they are NOT business-domain b
 | `toggleDebugAction` | POST | Toggles DEBUG by creating/deleting `data/framework/debug.flag` (see [`bootstrap.md`](bootstrap.md)), then clears APCu + PageCache so stale entries from the previous DEBUG state cannot be served. |
 | `toggleNoindexAction` | POST | Toggles the site-wide crawl block by creating/deleting `data/framework/seo/noindex.flag` (constant `SEO_NOINDEX`, see [`bootstrap.md`](bootstrap.md) / [`metadata.md`](metadata.md) SEO-NOINDEX-001), then clears APCu + PageCache so cached frontend pages re-render with/without the `robots` meta. Returns `data.noindex`. |
 | `toggleDebugAction` (min-check) | — | On switching debug OFF it additionally scans all module-level `layoutConfig` JS entries for missing `.min.js` variants and flashes the admin the list (JS-MIN-FALLBACK-001, see [`stylesheet.md`](stylesheet.md)). |
-| `savePreferencesAction` | POST | Persists the appearance fields into `UserPreferences` on the `LoginUser` JSON — starts from the stored preferences so fields owned elsewhere (e.g. `partial_labels`, PARTIAL-LABELS-002) survive. |
+| `savePreferencesAction` | POST | Persists the appearance fields into `UserPreferences` on the `BackendUser` JSON — starts from the stored preferences so fields owned elsewhere (e.g. `partial_labels`, PARTIAL-LABELS-002) survive. |
 
 The former `togglePartialLabelsAction` (global `partial-labels.flag`) was removed
 2026-07-18 — the partial-label overlay is now a per-user preference toggled in the
@@ -109,7 +110,7 @@ frontend admin overlay (see [`view-layer.md`](view-layer.md) partial labels).
 
 ## user preferences
 
-`UserPreferences` is a value object (`palette`, `dark_mode`, `font_scale`, `partial_labels` — the latter a per-viewArea map for the partial-label overlay, see [`view-layer.md`](view-layer.md)). Stored in `LoginUser::$preferences` (serialized via `#[Entity]` to `loginUsers.json`). `CurrentUserService` provides per-request caching — `LoginUser` is loaded once and reused. Controllers MUST NOT load `LoginUser` directly for preferences. A controller updating preferences MUST start from `getPreferences()` and set only its own fields — building a fresh `UserPreferences` from request data drops fields owned by other surfaces.
+`UserPreferences` is a value object (`palette`, `dark_mode`, `font_scale`, `partial_labels` — the latter a per-viewArea map for the partial-label overlay, see [`view-layer.md`](view-layer.md)). Stored in `BackendUser::$preferences` (serialized via `#[Entity]` to `backendUsers.json`). `CurrentUserService` provides per-request caching — `BackendUser` is loaded once and reused. Controllers MUST NOT load `BackendUser` directly for preferences. A controller updating preferences MUST start from `getPreferences()` and set only its own fields — building a fresh `UserPreferences` from request data drops fields owned by other surfaces.
 
 ```php
 // BackendAbstractController::html() auto-injects three context vars:
@@ -126,8 +127,8 @@ $context['beTheme']         = $context['userPreferences']->isDarkMode() ? 'dark'
 | Component | Role |
 |---|---|
 | `UserPreferences` (value object) | `palette` + `dark_mode` + `toArray()` |
-| `LoginUser::$preferences` | array field, serialized via `#[Entity]` |
-| `CurrentUserService` | per-request cache for `LoginUser`; owns `getPreferences()` + `savePreferences()` |
+| `BackendUser::$preferences` | array field, serialized via `#[Entity]` |
+| `CurrentUserService` | per-request cache for `BackendUser`; owns `getPreferences()` + `savePreferences()` |
 | `Palettes::all()` | catalog of selectable palettes (id + display name + accent for the picker buttons) |
 | `BackendAbstractController::html()` | auto-injects `userPreferences`, `bePalette`, `beTheme` into every HTML context |
 | `html-shell-skeleton.tpl.php` | renders `data-be-palette` / `data-be-theme` on `<html>` — CSS selectors in `_colors.scss` activate the matching token set |
@@ -194,14 +195,14 @@ every full frontend page, via a right-edge hover overlay.
   neither be stored into visitor pages nor be missing on a cached hit. See
   [`cache.md`](cache.md) CACHE-ADMIN-001.
 
-## user management (LoginUserController)
+## user management (BackendUserController)
 
-`/backend/system/login-user/list` — administers `LoginUser` accounts. Flat list
+`/backend/system/backend-user/list` — administers `BackendUser` accounts. Flat list
 (no hierarchy), mirrors the navigation modal/fetch pattern WITHOUT the tree
 machinery: it extends `BackendAbstractController` directly (not
 `AbstractTreeEntityController`).
 
-- `LoginUser` gained a `sortKey` (plain int, server-controlled — not via
+- `BackendUser` gained a `sortKey` (plain int, server-controlled — not via
   `TreeNodeTrait`, no `parentId`). New users get `nextSortKey()` (appended);
   the list orders by it. `moveAction` does a flat reorder: `{entry_id, new_index}`
   → renumber `sortKey` densely among the rest, persist changed rows.
@@ -211,23 +212,23 @@ machinery: it extends `BackendAbstractController` directly (not
   `initials` (`#[Clean('text')]`, optional avatar initials — see below).
   `passwordHash` / `roles` / `sortKey` are re-set server-side after
   `mapFromArray` — never trusted from the body.
-- **Avatar initials**: `LoginUser::$initials` is optional user-entered display data
+- **Avatar initials**: `BackendUser::$initials` is optional user-entered display data
   (2–3 chars, `#[Clean('text')]`, `validateInitials` enforces the length only when
   non-empty). It maps straight from the form (NOT security-relevant, no server re-set).
   `BackendAbstractController::html()` fills `headerUser['initials']` from
-  `CurrentUserService::getLoginUser()->getInitials()` when set, otherwise derives it
+  `CurrentUserService::getBackendUser()->getInitials()` when set, otherwise derives it
   from the username (first two letters, uppercased) — the previous behaviour. Existing
   users without the field keep the derived initials until one is entered. The topbar +
   service-panel avatars render this single `headerUser['initials']` string.
-- `LoginUserValidator` overrides `executeValidation()` to also check the transient
+- `BackendUserValidator` overrides `executeValidation()` to also check the transient
   `password` (not an entity field). Live blur-check is format-only (no repo) —
   uniqueness runs on submit where the loaded entity excludes itself.
 - **Password strength**: on add/edit the password is evaluated via
   `Z77\Shared\Auth\PasswordPolicy` (length + blocklist, NOT composition) using the
   installation-wide `PasswordTier` (resolved via `BackendAbstractController::passwordTier()`).
-  Weak sets `LoginUser::passwordWeak` (drives the every-login nag). It is
+  Weak sets `BackendUser::passwordWeak` (drives the every-login nag). It is
   **allowed, never blocked — EXCEPT** under tier `veryStrong`, where
-  `LoginUserValidator` adds a field error (hard block on save). See
+  `BackendUserValidator` adds a field error (hard block on save). See
   [`security.md`](security.md) (PWD-POLICY-001). The edit form shows a live strength
   meter (`password-meter.js`, hint only; min length passed via `data-z77-password-min`).
 - **Delete protection** (`deleteBlockReason`, enforced in both `confirmDelete`
@@ -240,10 +241,10 @@ machinery: it extends `BackendAbstractController` directly (not
   `base.css` (flat rows, no tree depth/toggle). The old per-page `navigation/list.css`
   + `.be-nav-*` were consolidated away (CSS-LIST-CONSOLIDATION-001). Row actions run
   through the `⋮` hub (`actionsAction` → `actions.tpl.php`), not inline buttons
-  (LIST-ACTIONS-HUB-001, see [`css-backend.md`](css-backend.md)). `login-user/list.js`
+  (LIST-ACTIONS-HUB-001, see [`css-backend.md`](css-backend.md)). `backend-user/list.js`
   handles the flat DnD.
 - The "Benutzer" navigation entry (`navigation.json` id 7) points here:
-  `/backend/system/login-user/list` (was the placeholder `/backend/users/user/list`;
+  `/backend/system/backend-user/list` (was the placeholder `/backend/users/user/list`;
   the unused `users` group + its `groupDefaults` entry were removed).
 
 ## first-run setup (SetupController)
@@ -258,7 +259,7 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 
 ## rules
 
-- When adding a new backend controller (HTML or Fetch) → MUST extend `BackendAbstractController`; MUST be placed inside the matching group subdirectory (`System/`, `Content/`, …) with the namespace `Z77\Module\Backend\Ui\Controllers\{Group}`; `userPreferences` is auto-injected; MUST NOT load `LoginUser` manually for preferences
+- When adding a new backend controller (HTML or Fetch) → MUST extend `BackendAbstractController`; MUST be placed inside the matching group subdirectory (`System/`, `Content/`, …) with the namespace `Z77\Module\Backend\Ui\Controllers\{Group}`; `userPreferences` is auto-injected; MUST NOT load `BackendUser` manually for preferences
 - When adding a backend controller that matches the module baseline (ADMIN role, `list` default action) → MUST NOT add a `controllers` entry in `backendConfig.inc.php` — the fallback chain covers it (deviation-only, AUTH-B003). An entry is added ONLY for a deviation: looser/stricter role (GUEST login/setup, SUPER_USER backup) or a different defaultAction (dashboard `overview`, document `preview`). New groups still go into `groupDefaults`.
 - When constructing a backend URL in templates or JS → MUST use the 4-segment form `/backend/{group}/{controller}/{action}` (e.g. `/backend/system/login/login`, `/backend/content/navigation/list`); MUST NOT use the old 3-segment form
 - When adding action-specific CSS or JS → MUST register via `$this->layoutManager->addCss()` / `addJs()` in the controller action after calling `$this->html()`; MUST NOT use inline `<style>` or `<script>` blocks in templates
@@ -267,7 +268,7 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 - When adding interactive UI logic → MUST stay hand-written vanilla JS (MUST NOT introduce a JS build pipeline); reusable cross-page behaviour goes in a shared/module JS file (e.g. `panel-toggle.js`) loaded via `layoutConfig` `javascripts`, page-specific snippets stay inline in `partials/footer.tpl.php`
 - When a topbar/panel needs a click-dropdown or a collapsible → MUST use the `panel-toggle.js` data-attribute contract (`data-panel-root` / `data-panel-trigger` / `data-panel`, or `data-collapse-trigger` / `data-collapse`); MUST NOT hand-write per-panel toggle JS
 - When a panel element starts `hidden` but a class sets its `display` → MUST add `&[hidden]{display:none}` so the attribute wins (the UA `[hidden]` rule is overridden by any class `display` declaration)
-- For popup modals (`be-modal`): the `.be-modal__body` is the ONLY scroll region — the flex chain (dialog → `.be-modal__inner` → `.z77-popup__body` → injected `<form>` → `.be-modal__body{flex:1;min-height:0;overflow-y:auto}`) MUST stay intact, every link a `min-height:0` flex column, or the body overflows the dialog's `overflow:hidden` (clipped, no scroll). A generic `[data-popup-fullscreen]` button in the skeleton dialog toggles `[data-fullscreen]` on the popup root (handled in the shared popup channel beside `[data-popup-close]`); applies to ALL popups. MUST NOT set an inline `max-width` on the `<dialog>` — CSS owns sizing so the `[data-fullscreen]` variant can override it.
+- For popup modals (`be-modal`): the `.be-modal__body` is the ONLY scroll region — the flex chain (dialog → `.be-modal__inner` → `.z77-popup__body` → the injected panel root, whatever element it is → `.be-modal__body{flex:1;min-height:0;overflow-y:auto}`) MUST stay intact, every link a `min-height:0` flex column, or the body overflows the dialog's `overflow:hidden` (clipped, no scroll). A generic `[data-popup-fullscreen]` button in the skeleton dialog toggles `[data-fullscreen]` on the popup root (handled in the shared popup channel beside `[data-popup-close]`); applies to ALL popups. MUST NOT set an inline `max-width` on the `<dialog>` — CSS owns sizing so the `[data-fullscreen]` variant can override it.
 - When a frontend controller renders pages → MUST extend `AbstractFrontendController` (not `AbstractBaseController`) so admins get the admin overlay; the overlay MUST stay gated by `AuthUser::hasAtLeast(AuthRole::ADMIN)` + `Page` mode
 - When module chrome needs the current routing context (module/controller/action/template) → MUST `use Z77\Shared\Controller\RouteInfoTrait`; MUST NOT add it to the core `AbstractBaseController`
 - When adding or changing a framework JS/CSS asset → MUST get it into `skeleton/public/assets/{ns}` before it resolves (the `FileFinder` reads `public/assets`, not `res/assets`). `public/` is **seed-once** (ADR-024): a plain `composer install` only seeds when `public/` is absent, so it will NOT update an already-deployed file — delete the file (or `skeleton/public`) and `composer install -d skeleton` to re-seed, or copy `res/assets/...` → `public/assets/{ns}/...` by hand
@@ -287,7 +288,7 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 ## known issues
 
 - ARCH-P002 — resolved. `UserPreferences` moved to `Z77\Shared\ValueObjects\`.
-- BUG-P001 — resolved. `Naming::toCamelCase` fixed; `LoginUser` save round-trip works again.
+- BUG-P001 — resolved. `Naming::toCamelCase` fixed; `BackendUser` save round-trip works again.
 - **ARCH-B001** — resolved. `AuthService::savePreferences()` and `getPreferences()` removed. `login()` no longer accepts `UserPreferences`. Preference session writes/reads are now the controller's responsibility.
 - User-preferences round-trip verified (Chrome + Firefox, 2026-05-15): palette + dark mode persist across logout/login and across browsers for the same user.
 - **TOPBAR-ENV-001** — resolved 2026-05-30. Umgebungs-Switcher war immer offen: `.backend-topbar__env-menu{display:flex}` überschrieb das `hidden`-Attribut, sodass das (damals inline in `footer.tpl.php` vorhandene) Toggle die Sichtbarkeit nicht steuern konnte. Fix: `&[hidden]{display:none}` (Attribut gewinnt) + Avatar-/Umgebungs-Toggle in das shared `panel-toggle.js` konsolidiert (Klick-Toggle + Outside/Esc-Close, data-attribut-getrieben). **Wichtig:** das alte Inline-Toggle in `footer.tpl.php` musste entfernt werden — sonst banden beide Handler denselben Button und der Doppel-Klick-Toggle hob sich auf (Panel öffnete „nicht"). `footer.tpl.php` hält jetzt nur noch den Hamburger.
@@ -295,9 +296,10 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 - **FE-ADMIN-OVERLAY-001** — resolved 2026-05-30. Frontend-Admin-Overlay (Umgebung + Info + Logout) via neuem `AbstractFrontendController`, rollen-gated (`hasAtLeast(ADMIN)` + Page-Mode), isoliertes kompiliertes `admin-overlay.css` (eigene Tokens/Font, übersteuert Frontend). Hover-Reveal rein CSS.
 - **FE-OVERLAY-LOGIC-001** — resolved 2026-07-07. `partials/adminOverlay.tpl.php` trug denselben Konventionsverstoss wie der alte Backend-Header: es griff auf das `AuthUser`-Security-Objekt zu und entschied die Sichtbarkeit im Template (`$authUser->hasAtLeast(ADMIN)`, `getUserName()`, `getHighestRole()`). Fix analog HEADER-AUTH-001: `AbstractFrontendController::html()` injiziert ein plaines `overlayUser` view-model (`initials`/`name`/`role`) NUR für Admins im Page-Mode (Auth-Entscheidung im Controller); das Template nutzt nur noch diese Strings + eine reine Daten-Präsenz-Zeile `if (empty($overlayUser)) return;` (kein Security-Objekt mehr, kein `hasAtLeast`-Gate). Das Partial wird weiter cross-module über `addPartials(..., self::NAMESPACE, 'adminOverlay')` geladen — die Namespace-Signatur trägt das. Gleichzeitig die verwaiste flache `partials/head.tpl.php` (nicht verdrahtet — `layoutConfig` nutzt `partials/head/*`; enthielt direktes `htmlspecialchars`) gelöscht.
 - **AUTH-B002** — resolved 2026-06-02. Access-control `controllers` map was keyed by controller **base name** only, and `AuthService::resolveRoleForCurrentController()` looked it up without the group — two controllers sharing a base name across groups would have collided on one key (silent PHP array overwrite) and resolved the wrong role (security-relevant). Fixed by nesting `controllers` by group in `backendConfig` + `frontendConfig` (`controllers[$group][$controllerBaseName]`), removing the now-redundant per-entry `'group'` field, and making `AuthService` + `ModuleManager::getDefaultActionForController()` group-aware (callers `Request::setController`, `LoginController` redirect pass the group). Dead `ModuleManager::getRole()` (no callers, read the old flat map) deleted. Verified live: `/login` + frontend pages 200 for guests (nested GUEST/wildcard resolves), protected + convention-fallback backend routes 302 → `/login`. Same root cause as the ADR-005 template-nesting revision. Follow-up: CACHE-B001 (pending).
-- **ROLE-DEF-001** — resolved 2026-06-03. `LoginUserController::ROLE_LABELS` no longer defines the role SET: the offered roles + order are derived from `AuthRole::getRoleHierarchy()` (SSOT) via the new `roleLabels()` method, which iterates the core hierarchy (highest first) and looks up a German label per *existing* role (fallback = the role key). `ROLE_LABELS` is now a presentation-only label dictionary — a stale entry for a removed role is simply never read, and a new core role appears automatically (with its key until labeled). Decision: labels stay in the module, role set from core. See [`login.md`](login.md) role system.
-- **HEADER-AUTH-001** — resolved 2026-06-04. Topbar (Logo, Modul-Tabs, Umgebungs-Switcher, Avatar/Service-Panel) fehlte auf `/backend/content/content/list` komplett. Ursache: `header.tpl.php` brach via `if (empty($authUser) || !$authUser->isLoggedIn()) return;` ab, und `authUser` wurde NICHT zentral injiziert — jeder Controller musste es selbst übergeben; `ContentController` tat das nie. Doppelter Konventionsverstoss: Security-Entscheidung + Zugriff auf das `AuthUser`-Objekt im Template, obwohl die Auth bereits am Dispatch geregelt ist (`Dispatcher` → `AccessGuard::enforce()` VOR der Action; jeder Backend-Controller `controllerRole ADMIN`, nur login/setup GUEST). Fix: `BackendAbstractController::html()` injiziert ein plain `headerUser` view-model (`initials`/`name`/`role`) NUR wenn eingeloggt (Auth-Entscheidung im Controller); das Template nutzt nur noch diese Strings + eine reine Daten-Präsenz-Zeile `if (empty($headerUser)) return;` (kein Security-Objekt mehr). Redundante `authUser`-Zeile in `NavigationController`/`NavigationGroupController`/`LoginController` entfernt (Dashboard + LoginUser behalten `authUser`, deren Templates nutzen es für Begrüssung bzw. `$isSelf`). Restpunkt: login/setup-Skeleton (LAYOUT-B001), danach entfällt auch der Präsenz-Check.
+- **ROLE-DEF-001** — resolved 2026-06-03. `BackendUserController::ROLE_LABELS` no longer defines the role SET: the offered roles + order are derived from `AuthRole::getRoleHierarchy()` (SSOT) via the new `roleLabels()` method, which iterates the core hierarchy (highest first) and looks up a German label per *existing* role (fallback = the role key). `ROLE_LABELS` is now a presentation-only label dictionary — a stale entry for a removed role is simply never read, and a new core role appears automatically (with its key until labeled). Decision: labels stay in the module, role set from core. See [`login.md`](login.md) role system.
+- **HEADER-AUTH-001** — resolved 2026-06-04. Topbar (Logo, Modul-Tabs, Umgebungs-Switcher, Avatar/Service-Panel) fehlte auf `/backend/content/content/list` komplett. Ursache: `header.tpl.php` brach via `if (empty($authUser) || !$authUser->isLoggedIn()) return;` ab, und `authUser` wurde NICHT zentral injiziert — jeder Controller musste es selbst übergeben; `ContentController` tat das nie. Doppelter Konventionsverstoss: Security-Entscheidung + Zugriff auf das `AuthUser`-Objekt im Template, obwohl die Auth bereits am Dispatch geregelt ist (`Dispatcher` → `AccessGuard::enforce()` VOR der Action; jeder Backend-Controller `controllerRole ADMIN`, nur login/setup GUEST). Fix: `BackendAbstractController::html()` injiziert ein plain `headerUser` view-model (`initials`/`name`/`role`) NUR wenn eingeloggt (Auth-Entscheidung im Controller); das Template nutzt nur noch diese Strings + eine reine Daten-Präsenz-Zeile `if (empty($headerUser)) return;` (kein Security-Objekt mehr). Redundante `authUser`-Zeile in `NavigationController`/`NavigationGroupController`/`LoginController` entfernt (Dashboard + BackendUser behalten `authUser`, deren Templates nutzen es für Begrüssung bzw. `$isSelf`). Restpunkt: login/setup-Skeleton (LAYOUT-B001), danach entfällt auch der Präsenz-Check.
 - **MODAL-SCROLL-001** — resolved 2026-06-04. Popup-Edit-Fenster konnten nicht scrollen: `.be-modal__body` hatte zwar `overflow-y:auto; flex:1`, aber die Flex-Kette brach an `.z77-popup__body` + der injizierten `<form>` (normale Blocks) → der Body bekam keine begrenzte Höhe und wurde vom `overflow:hidden` des Dialogs abgeschnitten statt gescrollt. Fix: `.z77-popup__body` + `> form` als `min-height:0`-Flex-Spalten, `.be-modal__body{min-height:0}`. Gleichzeitig **Fullscreen-Toggle** für ALLE Popups: generischer `[data-popup-fullscreen]`-Button im Skeleton-Dialog → schaltet `[data-fullscreen]` am Popup-Root (im shared Popup-Channel neben `[data-popup-close]`; Reset beim Schliessen). Inline `max-width` am `<dialog>` entfernt → CSS steuert die Grösse (damit die Fullscreen-Variante übersteuern kann). `core.min.js` chirurgisch mitgepatcht (terser-Stil erhalten).
+- **MODAL-SCROLL-002** — resolved 2026-08-11. Gleiche Ursache wie MODAL-SCROLL-001, andere Bruchstelle: der Fix von damals nannte das Element (`.z77-popup__body > form`), aber nicht jedes Panel hat ein `<form>` als Wurzel. Panels mit einem Struktur-Wrapper (`.dms-trash` im DMS-Papierkorb, ebenso `.be-actions`, `.dms-actions`, `.dms-edit`) fielen aus der Kette → `.be-modal__body` bekam keine begrenzte Höhe, der Inhalt wurde vom `overflow:hidden` des Dialogs abgeschnitten (Papierkorb nicht scrollbar). Fix in `_modal.scss`: Selektor auf `.z77-popup__body > *` verallgemeinert — die Flex-Kette hängt nicht mehr am Elementnamen des Panel-Roots. Geprüft: alle Popup-Templates rendern genau EIN Wurzel-Element (kein Panel injiziert `header`/`body`/`footer` als Geschwister), sonst würde `> *` den Header mitwachsen lassen. Keins der vier Wrapper hat eigenes CSS.
 - **APPEARANCE-PIPELINE-001** — resolved 2026-05-27. Per-User-CSS-Generierung aus `BackendAbstractController::postExecute()` entfernt; `user-preferences.css.tpl.php` gelöscht. Palette/Theme-Wechsel jetzt über `data-be-palette` / `data-be-theme` Attribute am `<html>` (Server-rendered initial, `appearance.js` setzt sie bei Klick um — sofortige CSS-Selektor-Aktivierung). Token-Werte einzig in `_colors.scss`. Entfernt: inline `<script>` im Skeleton (localStorage-Sync), `TOKENS`-Hash + `_apply()` in `appearance.js` (187 → 77 Zeilen), `postExecute()`-Hook im Backend. Siehe auch [`css-backend.md`](css-backend.md).
 
 - **LAYOUT-B001** — resolved 2026-07-04. login + setup (both GUEST, full-page) now render through a dedicated chrome-less skeleton instead of the authenticated shell. New `res/view/templates/html-guest-skeleton.tpl.php` (only `$main` + flash/messages, no topbar/subnav/preview/footer/header-slots); the self-contained `.be-guest` wrapper (`components/_guest.scss`) fills the viewport and centers the `.login`/setup card, independent of the media-gated `layout/*.scss`. Selected per controller via `documentTpl` override in `src/Ui/Config/System/loginControllerConfig.inc.php` + `setupControllerConfig.inc.php` (applied on top of the module `layoutConfig`, last `documentTpl` wins). Revert = delete the two config files. **Restpunkt (bewusst offen):** the module `layoutConfig` still registers the chrome partials for every backend controller (`applyLayoutConfig` is append-only — a controller config cannot *unset* a section), so for a GUEST the shell topbar/subnav still render (to empty output — topbar self-skips on absent `headerUser`) and are simply not echoed by the guest skeleton. Therefore the `if (empty($headerUser)) return;` guard in `partials/shell/topbar.tpl.php` **stays** — the target of removing it entirely would need `removeSection()` (decided against) or a bigger config-loader change. Also fixed in the same pass: the login/setup form-control overrides in `_login.scss` had been dead since the `.form`→`.be-form` / `.btn`→`.be-btn` migration (CSS-LIST-CONSOLIDATION-001) — they targeted `.form__control` / `.btn--primary`, so the inputs blended into the card (same `--be-surface`). Renamed to `.be-form__control` / dropped the now-redundant button + focus-ring overrides (base is palette/theme-aware). See [`css-backend.md`](css-backend.md) GUEST-SKELETON-001.

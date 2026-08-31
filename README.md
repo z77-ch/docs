@@ -33,6 +33,7 @@ recipes — what a project follows when building).
 | [css-conventions.md](01-handbook/css-conventions.md) | CSS/SCSS standards: BEM, tokens, components |
 | [templates.md](01-handbook/templates.md) | Template layer: location, context injection, partials |
 | [installer.md](01-handbook/installer.md) | Composer installer: configuration, generated files, directory structure |
+| [release-structure.md](01-handbook/release-structure.md) | Zero-downtime deploys on shared hosting: shared/releases/current/next, SSH setup, switch mechanics |
 | [vision.md](01-handbook/vision.md) | Why this framework, goals, scope |
 
 **Cookbook — build recipes (for projects)**
@@ -55,9 +56,9 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | You are working on / keywords | Read |
 |---|---|
 | backend, dashboard, service panel, user preferences, system pages | [topics/backend.md](topics/backend.md) |
-| backup, restore, cron, z77-backup CLI | [topics/backup.md](topics/backup.md) |
+| backup, restore, z77-backup CLI | [topics/backup.md](topics/backup.md) |
 | content block types | [topics/block-types.md](topics/block-types.md) |
-| bootstrap, DI container, debug flag | [topics/bootstrap.md](topics/bootstrap.md) |
+| bootstrap, DI container, debug flag, systemConfig, canonical base URL / site address, installation identity, absolute URLs in mails | [topics/bootstrap.md](topics/bootstrap.md) |
 | cache, DataCache, APCu, page cache | [topics/cache.md](topics/cache.md) |
 | content, structured content, content files | [topics/content.md](topics/content.md) |
 | CSS/SCSS backend, werkbank | [topics/css-backend.md](topics/css-backend.md) |
@@ -67,10 +68,14 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | documents, DMS, drive, upload, delivery | [topics/documents.md](topics/documents.md) |
 | entities, hydration, entity data handling | [topics/entity-data-handling.md](topics/entity-data-handling.md) |
 | fetch, AJAX, CSRF, form validation | [topics/fetch.md](topics/fetch.md) |
+| forms, public form / formular, contact form fields, form validation rules, honeypot, blur check | [topics/forms.md](topics/forms.md) |
 | i18n, languages, locale switching | [topics/i18n.md](topics/i18n.md) |
+| import, data adoption, seed records into existing installation, wdv migration, ImportIdentity | [topics/import.md](topics/import.md) |
 | installer, `composer install`, project setup | [topics/installer.md](topics/installer.md) |
+| jobs, cron, queue, scheduling, background work, z77-run CLI, throttling, long-running tasks | [topics/jobs.md](topics/jobs.md) |
 | login, auth, session, AccessGuard | [topics/login.md](topics/login.md) |
 | mail, email, e-mail versand / configure email sending, SMTP, contact form / kontaktformular, form mail, emailConfig, sender / from address, EmailService, backend mail settings | [topics/mail.md](topics/mail.md) |
+| member accounts, customer login / kundenlogin, passwordless, magic link, registration / registrierung, TOTP 2FA, stay signed in / angemeldet bleiben, device keys | [topics/member.md](topics/member.md) |
 | messages, flash messages | [topics/messages.md](topics/messages.md) |
 | metadata, SEO | [topics/metadata.md](topics/metadata.md) |
 | navigation | [topics/navigation.md](topics/navigation.md) |

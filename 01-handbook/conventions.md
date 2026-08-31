@@ -70,11 +70,11 @@ PascalCase/camelCase; JSON persistence keys are snake_case.**
 | Artefact | Casing | Example |
 |---|---|---|
 | Web-served asset file (`.js` / `.css`) | kebab-case, lowercase | `password-meter.js`, `nav-desktop.css` |
-| Asset subfolder | kebab-case, lowercase | `login-user/`, `navigation-group/` |
-| URL segment | kebab-case, lowercase | `/backend/system/login-user/list` |
+| Asset subfolder | kebab-case, lowercase | `backend-user/`, `navigation-group/` |
+| URL segment | kebab-case, lowercase | `/backend/system/backend-user/list` |
 | CSS class (BEM) | kebab-case | `login__box`, `btn--primary` |
 | `data-*` attribute / `scriptInit` key | kebab-case | `data-z77-password`, `_Z77.scriptInit['password-meter']` |
-| PHP namespace / class | PascalCase | `LoginUserController` |
+| PHP namespace / class | PascalCase | `BackendUserController` |
 | PHP method / property | camelCase | `passwordWeak`, `getSortKey()` |
 | JSON persistence key | snake_case | `password_hash`, `sort_key` |
 | Template file | `{action}Action.tpl.php` (action in camelCase) | `setupAction.tpl.php` |
@@ -307,9 +307,17 @@ Use `DI::getRequest()` — it wraps all HTTP input and provides a clean API:
 DI::getRequest()->isPost()                        // instead of $_SERVER['REQUEST_METHOD'] === 'POST'
 DI::getRequest()->getPostParameter('username')    // instead of $_POST['username']
 DI::getRequest()->getGetParameter('q')            // instead of $_GET['q']
+DI::getRequest()->getBaseUrl()                    // instead of $_SERVER['HTTP_HOST']
 ```
 
 `$_SERVER`, `$_POST`, and `$_GET` are only accessed inside `Request` itself.
+
+`getBaseUrl()` is the one source for absolute URLs that leave the request — mail links, the
+SEO canonical/hreflang set, anything rendered into a cacheable page. It returns the
+installation's `canonicalBaseUrl` (`config/systemConfig.inc.php`, ADR-030) and throws when
+that is unset rather than guessing: the `Host` header is the client's to choose, and the page
+cache keys on path only, so deriving an origin from it lets one forged request decide what
+every later visitor is served (SEC-005).
 
 ## Security
 

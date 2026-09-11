@@ -76,14 +76,22 @@ v2 backend-editable settings entity.
   smuggle extra headers or recipients.
 - **MIME structure follows the content:** text-only → `text/plain`; text+html →
   `multipart/alternative`; any body + attachments → `multipart/mixed` wrapping the body
-  part. Bodies + attachments are base64 (76-col wrapped), CRLF throughout; non-ASCII
-  subjects / display names are RFC 2047 B-encoded.
+  part. Text bodies are quoted-printable (since 2026-09-11 — a base64 text part is a spam
+  signal, `MIME_BASE64_TEXT`), attachments base64, both 76-col wrapped, CRLF throughout;
+  non-ASCII subjects / display names are RFC 2047 B-encoded. `X-Mailer: z77` is always set
+  (an absent user agent is a signal too, `MISSING_XM_UA`).
+- **Text and HTML halves carry the same number of URLs.** `HtmlToText` keeps a link's
+  address when its label does not spell it out (`label (href)`), so a button link is
+  still a link in the text part. Spam filters compare the two counts (`URI_COUNT_ODD`).
+- **Subjects do not end in a number** (`KAM_NUMSUBJECT`): the login mail puts the check
+  digits FIRST («Prüfzahl 3710 — Anmeldung bestätigen»).
 - **Envelope ≠ headers.** `MimeMessage::build()` returns `sender` + `recipients` (drives
   `MAIL FROM` / `RCPT TO`) separately from the `data` blob, so Bcc recipients are in the
   envelope but never in the visible headers.
 - **SMTP dot-stuffing lives in the transport,** not the builder: `SmtpTransport` doubles a
-  leading `.` on any DATA line. With base64 bodies this rarely triggers, but it is correct
-  for any payload.
+  leading `.` on any DATA line. With quoted-printable bodies a line CAN start with `.`
+  (a sentence starting with an ellipsis), so this is load-bearing. `PhpMailTransport`
+  hands the body to the local MTA over a pipe, which stuffs on its own relay leg.
 - **Encryption modes:** `tls` (plain connect + `STARTTLS` upgrade + re-`EHLO`, port 587),
   `ssl` (implicit TLS from connect, port 465), `none` (plaintext — local relay / tests).
   `AUTH LOGIN` runs only when a username is configured.
@@ -287,6 +295,29 @@ address in config:
 
 ## known issues
 
+- **MAIL-SPAM-001 — resolved 2026-09-11: on cyon, send via `transport='smtp'`, not `'mail'`.**
+  Cause chain (2026-09-09): `PhpMailTransport` → local sendmail → cyon's rspamd gateway
+  scores 6.7 (9.00 of it `RBL_AMI_NOIP` — a locally injected mail has no client IP) →
+  prefixes `[SPAM]` to the subject → the DKIM signature the server just made (covers
+  `Subject:`) is broken → receiver: `dkim=fail`, `dmarc=fail (p=REJECT)`, phishing
+  warning.
+  Fix, two parts shipped together: (1) SMTP submission (`mail.cyon.ch:465`, `ssl`,
+  authenticated as the From mailbox) — the gateway now sees `RCVD_VIA_SMTP_AUTH` and a
+  whitelisted last hop (`RWL_AMI_LASTHOP` −4.00) instead of `RBL_AMI_NOIP` +9.00;
+  (2) header hygiene in `MimeMessage` / `HtmlToText` / `LoginFlow` (quoted-printable,
+  `X-Mailer`, URL parity, digits-first subject — 1.85 points). Measured on a login mail
+  from axo3 release `2026-09-11-1150`: `X-Spam-Status: No, score=-5.0`, Gmail
+  `dkim=pass header.i=@axo3.ch`, `dmarc=pass`, no `[SPAM]` — and that across a
+  cyon-hosted forwarder (gateway passed twice). The two parts were not measured
+  separately; the SMTP swing (≈13 points) is what carries the margin, the hygiene alone
+  would have left ≈4.85. Remaining symbol: `KAM_LOTSOFHASH` (0.25, 64-hex token) — kept
+  deliberately, not worth touching a reviewed security primitive.
+  **Rule for every cyon project:** `transport='smtp'` with the From mailbox's
+  credentials. Project record: `z77-axo3.ch/work/docs/handoff-axo3-smtp-2026-09-11.md`.
+- **MAIL-TEXT-001 — `HtmlToText` swallows the space after an inline closing tag.** The
+  whitespace pass `(> )+` → `>` also eats the space in `</strong> Auf`, so the text part
+  reads «Vergleichen Sie zuerst:Auf» / «nicht?Dann» (seen in the 2026-09-11 login mail).
+  Inherited from the wdv-6.2.2 port; cosmetic, the HTML part is correct.
 - **MAIL-V2-001 — built 2026-07-18.** Backend-editable form-mail settings (see «form-mail
   settings v2» section): `EmailFormSetting` entity (incl. `active` flag) +
   `EmailSettingsController` (Service → E-Mail, navigation seed id 27) + entity-first
@@ -317,7 +348,7 @@ address in config:
   the file).
 - `PhpMailTransport` relies on the platform mailer honouring `Bcc:` in additional headers
   (sendmail `-t` on Linux does; PHP's win32 SMTP mailer does) — v1 consumers don't use Bcc.
-- Live SMTP delivery against a real relay was NOT exercised — there is no SMTP server in the dev env. The full stack (Message → MimeMessage → SmtpTransport conversation + dot-stuffing) IS verified e2e against a loopback fake-SMTP server (2026-06-15, all green), and the unconfigured path throws cleanly. Remaining manual check: configure a real relay and send.
+- Live SMTP delivery: proven 2026-09-11 against `mail.cyon.ch:465` (`ssl`, AUTH LOGIN) from axo3 — see MAIL-SPAM-001. Before that only e2e against a loopback fake-SMTP server (2026-06-15); the dev env still has no relay (use `transport='file'`).
 - `SmtpTransport` does no connection pooling / retry and `STARTTLS` uses default peer verification — fine for a transactional "send one document" flow; a bulk/queue sender is out of scope (not planned).
 - Long non-ASCII subjects are emitted as a single RFC 2047 encoded-word (no folding) — works with common MTAs; folding is not implemented.
 - `DocumentKind::mailable()` excludes `video`/`audio` only (size); everything else is attachable. There is no per-size byte cap on attachments yet — a very large attachable document would build a large message.
@@ -328,7 +359,11 @@ address in config:
   SPF + DKIM but the receiver reported `DMARC_NA` (no DMARC record). Not a blocker — the mail
   was delivered as ham — but a DMARC record hardens deliverability for the `noreply@zihlundsee.ch`
   From. Outside the app (DNS), tracked here as the go-live follow-up.
-- Manual check: configure a real SMTP relay in `config/mail.inc.php` (`transport='smtp'`, `enabled = true`) and send a document from the backend `documents` UI.
+- **zihlundsee.ch: switch the server to `transport='smtp'`** — verified 2026-09-11: its
+  `shared/config/mail.inc.php` is still `'mail'` (From `noreply@zihlundsee.ch`), on the
+  same cyon account as axo3, so exposed to the same gateway scoring as MAIL-SPAM-001.
+  Needs a mailbox for the From address.
+- Manual check: send a document from the backend `documents` UI over `transport='smtp'` (the SMTP transport itself is proven live since 2026-09-11, the document attachment path is not).
 - Phase 7 (integration): a module example (Fakturen) that generates a PDF → `saveGenerated()` → `DocumentService::send()`.
 - **v3 Kundenstamm:** resolve `ref:{source}:{id}` recipient entries against the customer
   master (extend `EmailService::resolveRecipients()`, add the UI picker + lift the

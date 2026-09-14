@@ -3,6 +3,12 @@
 **Status:** `[APPROVED]`
 **Date:** 2026-09-06
 
+> ⚠️ **Superseded in part by [ADR-038](adr-038-member-knows-no-project-reference.md)
+> (2026-09-13):** the session-choice rule stands; the data home (`tenantRef` +
+> `grants.json`, «ownership follows the home») is replaced by memberships kept
+> at the project's tenant. This ADR describes what is BUILT until that build
+> is accepted.
+
 ---
 
 ## Context
@@ -70,6 +76,11 @@ that works reads the choice, everything that owns reads the home.**
    two granted references on — one form per entry, no script; the master's
    «Zugänge» lists grants on his reference with the same two handgrips; the
    backend list shows grants as their own rows naming BOTH references.
+   *Amended 2026-09-12:* «Zugänge» is an AREA of the shell, not a section of
+   the profile, and it is present only while the session's choice IS the
+   home (`InvitationFlow::managesHere()`). The accesses belong to the
+   reference; with the switcher on another reference the profile section
+   listed the home's accounts under the wrong name, and nothing said so.
 
 ## Reasoning
 

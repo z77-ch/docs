@@ -14,6 +14,63 @@ not obvious from the message — a short why / follow-up. Keep it terse.
 
 ---
 
+## 2026-09-13
+
+### module-member: ADR-038 built — the member is the person, memberships are the project's
+
+- `MemberAccount` loses `tenantRef`, `tenantRole`, `suspendedAt`; `MemberGrant`,
+  `MemberGrants`, `grants.json` and yesterday's `ZugaengeController` are gone (the area
+  moves to the project with its templates). New `TenantChoice` + hooks `membershipHook`,
+  `joinHook`, `areaVisibilityHook`; `InvitationFlow` keeps only the token's craft
+  (`invite(inviter, ref, email)` checks no right, `redeem()` calls `joinHook`,
+  `sendJoinActivated()` for the project). Login no longer refuses a paused account —
+  pausing is a membership state at the project (MEM-016). Backend accounts list reads
+  «creates / attaches» from the hook. `shell.js` pause switch posts to `data-url`
+  (hand copy!). ⚠️ Ships ONLY together with the project side (axo3 S2): a framework
+  without `tenantRef` and a project still reading it must never meet. zihlundsee: no
+  hooks → no switcher, no invitations; its `accounts.json` drops the four keys on the
+  next save of each account. Measured by the axo3 suites (b7, b10) — the framework
+  carries no member tests of its own.
+
+### ADR-038: the member module knows no project reference (decided, not built)
+
+- `company`, `tenantRef`, `tenantRole`, `suspendedAt`-as-master-pause and `grants.json`
+  will leave `module-member`; memberships `(account, role owner|agent, state)` live at
+  the PROJECT's tenant, the module asks for them through a hook in the pattern of
+  `tenantLabelHook`. The `Zugaenge` area built yesterday moves to the project with
+  the domain; token mechanics stay. Why: the account was profile and tenant in one
+  (Peter, 2026-09-13, axo3) — measured: 4 of 20 account fields belong to the tenant,
+  the profile hook renames a tenant, the purge deletes people. Project ADR
+  `konto-und-mandant` (axo3-core). Build order: project's open questions first.
+
+### module-member: the flash band gets its close button
+
+- The member flash partial was the only one of the three without
+  `flash-msg__close` (backend and frontend always had it); `member.scss` had no
+  style for it either. core.js wires any button that is there and auto-dismisses
+  only success/info — an error is meant to stay. In the shell the band is
+  `position: fixed` at the top, so a refusal sat permanently on top of the action
+  cell with «Speichern». Found in the axo3 B4 acceptance on a duplicate slug
+  (Peter, 2026-09-12). Closer is absolutely positioned right, with padding on both
+  sides so the centred sentence stays centred — a flex sibling would push it off.
+  ⚠️ `member.css` is a hand copy per installation (ADR-024): rebuild with
+  `npm run build:member` and copy to `public/assets/member/css/`.
+
+## 2026-09-12
+
+### module-member: «Zugänge» becomes an area of the shell
+
+- «Zugänge» (invite, withdraw, pause, remove) moves out of the profile into its own
+  area `Main/ZugaengeController` — present only when the session's choice IS the home
+  and the account is master (`InvitationFlow::managesHere()`); `addAreas()` drops the
+  nav entry by the same predicate. The profile keeps Konto / 2FA / Geräte; its Konto
+  dialog names the home it renames. `shell.js` posts the pause switch to the new
+  route (hand copy per installation!). Why: with two references in the header the
+  profile section listed the home's accounts under another reference's name
+  (Peter, 2026-09-12, axo3). Handoff: `z77-axo3.ch/work/docs/handoff-framework-zugaenge-bereich-2026-09-12.md`.
+  ⚠️ An installation on this build without a `zugaenge` nav entry has NO way to
+  invite until the entry exists — it is data, added per machine.
+
 ## 2026-07-10
 
 ### Dev-environment docs for PC switch

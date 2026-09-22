@@ -1,13 +1,14 @@
 # Bauplan — order, debtor, financial, vat, contact, article
 
-**Status:** `[CONCEPT]` — before external review. Nothing built.
-**Date:** 2026-09-18, updated 2026-09-20 (article model A1–A7 decided, Q7 answered, module cut and
-build phases final, all questions answered, external review worked in 2014 ready for P0)
+**Status:** `[CONCEPT]` → P0 closed 2026-09-21 (ADR-039 to ADR-043 approved). P1 closed 2026-09-21. P2 parts 1–3 built 2026-09-22 (part 3, the reports, awaiting commit after review); next the P2 exit check, then P3 debtor.
+**Date:** 2026-09-18, updated 2026-09-21 (article model A1–A7 decided, Q7 answered, module cut and
+build phases final, all questions answered, external review worked in; the persistence-access
+question reopened ADR 2 on 2026-09-20 and was settled on 2026-09-21)
 **Basis:** [`order-financial-review-2026-09-18.md`](order-financial-review-2026-09-18.md) — findings
 in wdv-6.2.2 and decisions D1–D8 (§7 there). This plan does not repeat the wdv analysis.
-**ADRs:** to be written in phase P0 (§10).
+**ADRs:** ADR-039 to ADR-043, approved 2026-09-21 (§10).
 
-## Where we continue (as of 2026-09-20, end of day)
+## Where we continue (as of 2026-09-22)
 
 **What this plan builds:** order processing open to many sources, financial bookkeeping, receivables
 management, article management. Nothing else. Subscriptions, shipping and a shop are applications on
@@ -41,7 +42,162 @@ The last open point from the review — how a stock movement is derived from a s
 decided as well (§4b): against the movement journal rather than the previous status, so flags stay
 editable, a repeated call does nothing, and a reversal always carries a reason.
 
-**Next: the five ADRs** (§10), which is phase P0. Then P1 starts.
+The persistence-access question is settled as well (below): unified API, two drivers, minimal
+transaction port.
+
+**P1 closed (2026-09-21, end of session).** Done: `Money` in the kernel (`shared/src/Money`,
+`tests/money.php`, topic `money.md`); local MariaDB 10.6.28 for the driver tests (maintainer runbook).
+`z77/persistence-doctrine` is built in three parts, each with its own commit and tests against
+MariaDB. **Part (1) done** — package, `Bootstrap`, `DoctrineEntityManager`, `DoctrineRepository`,
+`MoneyType` (base currency from `systemConfig → baseCurrency`, owner-confirmed), driver map,
+`config/client/database.inc.php`, `doctrineEntities` plus the additive override file
+`doctrineEntitiesConfig.inc.php`; topic [`persistence-doctrine.md`](../topics/persistence-doctrine.md).
+**Part (2) done** — transaction port (`UnifiedEntityManager::getTransaction()`, nesting joins without
+savepoints, rollback-only, connection reset after a failed rollback), `NumberRange` (bare integer,
+ranges created ahead via `create()` — P2 calls it at fiscal-year opening) and the open-work registry
+(`openWorkChecks`, additive override file). **Part (3) done** — Doctrine caches under the
+release-local `var/cache/doctrine/` (in-memory in DEBUG), cleared by «Cache leeren», the DEBUG toggle
+and `migrate`; migrations CLI `vendor/bin/z77-db` (`migrate`, `status`, `diff`, `generate`), table
+`schema_migration`, timestamp order across modules; first package migration `number_range`.
+`persistence-doctrine` is complete. **`module-vat` done** (file-based tax codes with dated rates,
+`VatRates` lookup, `VatCalculator` on `Money`, backend `/backend/finance/tax-code`, CH seed from 2018;
+ESTV mapping deferred to P5, snapshot serialisation to P3 — topic [`vat.md`](../topics/vat.md)).
+**`module-contact` done** (Doctrine contact with n typed addresses, file-based `AddressType`, first
+module migration, backend `/backend/contact/…`; `z77-db migrate` on `next` is in the deploy
+checklist — topic [`contact.md`](../topics/contact.md)). **P1 is complete** (exit criteria met).
+**P2 part 1 done (2026-09-22)** — `module-financial` package with the chart of accounts and the
+fiscal years/periods (topic [`financial.md`](../topics/financial.md), `tests/module-financial.php`,
+the module's first migration `Version20260922071232`, backend `/backend/finance/account` and
+`/backend/finance/fiscal-year`). Owner decisions of 2026-09-22: (1) **periods are calendar months**,
+derived when a year is opened and clipped to its bounds; (2) the **KMU chart comes by button** —
+«KMU-Kontenrahmen übernehmen» only while the chart is empty, not as installer seed or migration,
+so a migrated wdv chart (P5b) never gets it forced on it; (3) **five account types** — `equity`
+separate from `liability`, so the balance sheet splits equity by type without a number rule;
+(4) **free fiscal-year dates** (deviating, shortened, extended years; at most 24 months,
+contiguous). Follow-on decision (orchestrator): a fiscal year carries a **`code`** (`2026`,
+`2026-27`, proposed from the dates, immutable) and its range is `journal-entry.{code}` — two years
+can start in the same calendar year, so the start year cannot name the range. Opening a year creates
+that range at 0 through `NumberRange::create()` in the same unit of work (DOCTRINE-NR-003 resolved).
+**P2 part 2 done (2026-09-22)** — the journal (`JournalEntry` / `JournalLine`, migration
+`Version20260922091711`), `LedgerService::post()` / `reverse()` as the one write path (§1, §5.4),
+manual entries with change log (`EntryChange`, `ManualEntryService`), the `Ledger/` DTOs other
+modules see (`PostingRequest`, `PostingLine`, `EntryRef`), backend `/backend/finance/journal`
+(list per fiscal year, detail with reversal link and change log, manual entry form without
+JavaScript, edit/delete with confirmation). Harness: `tests/module-financial.php`, 180 checks,
+including three parallel posters with rollbacks staying gapless. Decisions taken on the way, all
+recorded in [`financial.md`](../topics/financial.md): a repeated idempotency key with DIFFERENT
+content is refused loudly (`IdempotencyConflictException`), content = date, text, origin, lines;
+the reversal's reason is the reversal entry's TEXT, its origin is inherited from the reversed
+entry, its tax base/amount are negated; `taxRate` is snapshotted on the line next to ADR-041's
+three fields (§5.6 groups by code + rate — an ADDITION to ADR-041 decision 7, not a contradiction;
+the label is not snapshotted); tax codes are validated for EXISTENCE at posting (a deactivated code
+still posts from a snapshotted document), the manual form offers active codes only; the author is
+the `AuthUser` name (backend user or `cron:{job}`), a CLI caller names the actor explicitly;
+`accountExists()` of §5.4 is NOT built (no production caller yet — arrives with debtor's account
+settings in P3). Independent review worked in the same day: **optimistic locking** on manual
+entries (`journal_entry.version`, `#[ORM\Version]`; the services take id + version, re-read under
+a row lock, refuse a stale write with `EntryConflictException` — two parallel edits, a stale delete
+and a stale edit after a delete are harness cases); `reverse()` may post to a now-inactive account
+and a manual edit may keep an unchanged line on one (ADR-043/19 applied to accounts); the race
+contract of `post()`/`reverse()` (unique-index failure at commit, no number consumed, no retry
+inside the unit of work) is a rule binding the P3 debtor adapter; a reversal may be dated in the
+next fiscal year. Two owner questions stay open: locking `type` / `postable` once postings exist
+(FIN-TYPE-001) and deleting a wrongly opened fiscal year (FIN-FY-002).
+**P2 part 3 built (2026-09-22, not yet reviewed / committed)** — the reports (§5.5): trial
+balance, balance sheet, income statement, account statement (Kontoblatt) and journal, as SQL
+aggregates over `journal_line` on the EntityManager's own connection
+(`JournalLineRepository`, Doctrine-only, every value bound), turned into `Money` from the
+decimal strings (`LedgerReports`), one fiscal year and a from–to range inside it per report;
+backend `/backend/finance/report/…` (one page each, tab row, GET parameters, month shortcuts,
+paging, printable from the browser through a new `@media print` block of the shell — no
+JavaScript). Decisions taken on the way, recorded in [`financial.md`](../topics/financial.md):
+balances positive on the account's natural side (the trial balance splits Saldo Soll / Haben
+instead); the balance sheet is a statement AT «to» from the year's first day, with the current
+result as a line in equity; the type decides the block, the parent chain the grouping (a mixed
+KMU group appears on both sides); account statement 500 lines and journal 200 entries per page,
+the running balance as a window function over the whole range. **No opening entry before P5**:
+every report reads one fiscal year, so a later year shows no carried-forward balances
+(FIN-REPORT-001 — owner: derived from the previous year, re-derivable until the close; no
+cross-year workaround). No export (CSV/PDF) yet. At 20'000 lines every report takes ≈ 0.1 s with
+the existing indexes — no new migration. Harness: `tests/module-financial.php`, 265 checks (review findings of the same day worked in).
+**P2 parts 1–3 are built. Next: the P2 exit check «manual bookkeeping usable»** (a live pass in
+a project installation: open a year, post, edit, delete, read and print every report — see
+`financial.md` pending), **then P3 debtor**.
+**FIN-FY-002 resolved (owner, 2026-09-22):** a wrongly opened fiscal year is deleted in the backend while it is the latest and nothing was ever posted in it — year, periods and range in one unit of work (`FiscalYearService::delete()`, `NumberRangeRepository::dropUnused()`); FIN-TYPE-001 stays open.
+Framework-wide pending found on the way: module config override replaces instead of merging
+(BOOT-CONFIG-001 in `bootstrap.md`).
+
+Open for the owner: `persistence-doctrine`, `module-vat` and `module-contact` are not split targets
+yet (`.github/workflows/split.yml`, Packagist). Working method that carried P1: each building block
+built by one agent, reviewed independently by a second against the ADRs (with probes against
+MariaDB), findings fixed before the commit; owner decisions recorded in the topic docs.
+
+### Settled before P0 — how the business modules reach persistence
+
+Raised 2026-09-20 in the evening, deliberately **not** decided that day. Decided on 2026-09-21.
+
+ADR 2 as drafted in §10 deviates from
+[`persistence-architecture.md`](../topics/persistence-architecture.md), which promises **one**
+consumer API — `UnifiedEntityManager::getRepository()` returning a `RepositoryInterface` — for every
+backend. The developer's position (2026-09-20): that document is correct and was well considered, so
+the plan bends to it rather than the other way round. **Confirmed 2026-09-21.**
+
+The question splits in two, and this plan had conflated them:
+
+- **Where the driver lives** — kernel `persistence/src/Doctrine/` (as the driver contract in the
+  topic doc spells out) or the own package `z77/persistence-doctrine` (§2). **No real conflict
+  here:** §2 already keeps the namespace `Z77\Persistence\Doctrine` so that `bootManager()`'s
+  convention holds, and the topic doc names a *path*, not a semantic. The reason for the separate
+  package has nothing to do with persistence — it is ADR-001: the kernel carries no Composer
+  dependencies, and Doctrine brings about fifteen.
+- **How a module reads and writes** — through `UnifiedEntityManager`, or bound to Doctrine's
+  EntityManager directly. **This is the actual decision.**
+
+What the discussion established, so it is not re-derived tomorrow:
+
+- The DBAL SQL reports of §5.5 are **not** an argument against the unified API. The topic doc's
+  rules already cover them: a complex query needing DQL or QueryBuilder is implemented as a
+  driver-specific method *outside* the interface, with the deviation documented.
+- For the unified API: **the mixed case is the normal case here.** `module-debtor` holds
+  `Invoice`, `OpenItem` and `Payment` in Doctrine and `PaymentTerms`, `DunningLevel` and
+  `PaymentTarget` as files — same module, often the same service. One access path keeps that code
+  uniform and keeps the backend a property of `#[Entity]` instead of a property of the calling
+  code. Convention discovery (`\Entities\X` → `\Repositories\XRepository`) and the Memory driver
+  (tests without a database) stay available with it.
+- Against it, and the point the decision actually turns on: **transactions.** ARCH-A003 in the
+  topic doc states that they cannot be abstracted through `RepositoryInterface`, and that is
+  correct. This plan needs them in four places — §5.4 (`LedgerService` never commits, the caller
+  owns the transaction), §6.2 (`invoice()` and `finalize()`, one transaction each) and §4b (status
+  change and stock movement in one). Keeping the unified API therefore requires a **transaction
+  port** that only the Doctrine driver fulfils and the File driver honestly refuses. That is an
+  *extension* of the architecture, not a contradiction of it — but it has to be designed, and
+  ARCH-A003 then needs rewording: not "no transactions", but "no transaction in the shared
+  interface".
+- Two smaller ones ride along: the row lock for `NumberRange` (`SELECT … FOR UPDATE`) is a second
+  driver-specific spot and falls under the same deviation rule; and ARCH-A002 ("z77 does not
+  implement an Identity Map") stops being true the moment the Doctrine branch is alive.
+
+**Decided 2026-09-21:**
+
+- **Unified API confirmed.** Business modules read and write through
+  `UnifiedEntityManager::getRepository()`; a simple order query looks the same on every backend.
+- **Two drivers, not three.** A separate SQL connection for the ledger reports (balance sheet,
+  income statement) was considered and **rejected**: Doctrine ORM already runs on DBAL, so the report
+  SQL goes through `$em->getConnection()` of the same Doctrine driver. A second connection would
+  duplicate the credentials (Rule 2) and would not see uncommitted writes of the first one. Report
+  methods live in the repository, outside `RepositoryInterface`, documented as Doctrine-specific.
+- **wdv `EntityManager::transactional($persister)` is not a model.** It was never called in wdv; its
+  retry loop (`sleep(1)`, five attempts) treated a symptom — a batch that was triggered twice. The fix
+  for a double trigger is idempotency (§4b), not a retry.
+
+- **Transaction port: minimal.** Doctrine's `flush()` already writes in one transaction; an explicit
+  transaction is needed only where DBAL SQL and ORM writes must be atomic together — concretely the
+  `NumberRange` row lock (`SELECT … FOR UPDATE` holds only inside an open transaction). Only the
+  Doctrine driver fulfils the port; the File driver refuses it. No retry loop, no persister class.
+
+Consequences: ADR 2 changes its statement, §2 and
+§5.4/§6.2 are pulled along, and `persistence-architecture.md` is **extended** by the transaction
+port rather than corrected.
 
 Background analyses of wdv (order domain, order↔financial/VAT coupling, article catalog/shop) are
 condensed in the review document and in §4b; nothing else needs to be re-read.
@@ -167,7 +323,7 @@ module, not part of debtor. There is no "order customer" or "debtor customer": t
 
 | Entity | Storage | Fields (sketch) |
 |---|---|---|
-| `Contact` | Doctrine | person or company, name parts, language, e-mail/phone, optional `memberAccountId`, active |
+| `Contact` | Doctrine | person or company, name parts, language, e-mail/phone, active (`memberAccountId` removed 2026-09-21, owner — added back with the first consumer, customer portal/shop) |
 | `Address` | Doctrine | salutation, title, first name, name, address row, street, house no, zip, city, country |
 | `ContactAddress` | Doctrine | contact ↔ address with **type** and title — n addresses per contact (wdv `Addressing`) |
 | `AddressType` | file | main, invoice, delivery, regional, … — managed data, like wdv `AddressType` |
@@ -404,7 +560,7 @@ called from outside (§7).
 
 | Entity | Storage | Why |
 |---|---|---|
-| `Account` (number, name, type asset/liability/expense/revenue, parent for grouping, active) | Doctrine | referenced by every line; reports join by type/group |
+| `Account` (number, name, type asset/liability/equity/expense/revenue — five, owner 2026-09-22 — parent group, postable, active) | Doctrine | referenced by every line; reports join by type/group |
 | `FiscalYear`, `Period` (with close state) | Doctrine | locks are checked inside the posting transaction |
 | `JournalEntry` (header) + `JournalLine` | Doctrine | volume, transactions, SQL reports |
 | `EntryChange` (change log of manual entries) | Doctrine | traceability, see §5.3 |
@@ -412,7 +568,9 @@ called from outside (§7).
 | `VatReturn` (period, method, totals per form field, state) | Doctrine | references the period and its entries |
 | Settings (VAT method, **VAT-return rounding account**, VAT payable/settlement accounts, retained earnings) | file config | single values, one place (Rule 2) |
 
-Default chart: Swiss SME chart of accounts (KMU-Kontenrahmen) as first-install seed.
+Default chart: Swiss SME chart of accounts (KMU-Kontenrahmen), shipped as a resource file and
+adopted by a button **only into an empty chart** — not a first-install seed (owner, 2026-09-22: a
+migrated chart must not get it forced on it).
 
 ### 5.2 Journal entry
 
@@ -638,7 +796,7 @@ is financial's; the adapter is the only debtor class that knows financial.
 - Quote and order confirmation as PDF from the order.
 - VAT on quote/order **for display only** via `module-vat`.
 - "Invoice": builds an `InvoiceDraft` from one or several orders (collective invoice), calls
-  `InvoicingService::issue()`, records the invoice number per line. Payment state is **asked** from
+  `InvoicingService::invoice()`, records the invoice number per line. Payment state is **asked** from
   debtor, never pushed back.
 - order posts nothing.
 
@@ -706,6 +864,13 @@ Two changes from the review of 2026-09-20, both about finding mistakes earlier:
 
 ## 10. ADRs to write (P0)
 
+**Written 2026-09-21:** 1 → [ADR-040](../02-decisions/adr-040-business-module-cut.md),
+2 → [ADR-039](../02-decisions/adr-039-doctrine-driver-behind-unified-entity-manager.md),
+3 → [ADR-041](../02-decisions/adr-041-vat-model.md),
+4 → [ADR-042](../02-decisions/adr-042-ledger-and-money.md),
+5 → [ADR-043](../02-decisions/adr-043-order-status-and-stock-movements.md); all five approved 2026-09-21, P0 closed. The ADRs are
+binding; where this list and an ADR differ, the ADR wins.
+
 1. **Business module cut** — order / debtor / financial / vat, dependency direction, invoicing in
    debtor, order posts nothing, financial open to any posting source, opaque origin + idempotency,
    one transaction, accounting port, payment state asked through a port and never pushed (§7).
@@ -715,8 +880,16 @@ Two changes from the review of 2026-09-20, both about finding mistakes earlier:
    post everything a second time. Bounded to staging-based import (ADR-032) with `origin = wdv`.
    Unnamed, this is discovered in the migration phase and looks like a violation (review 2026-09-20).
 2. **Doctrine persistence package** — own package, lazy (ADR-001), Doctrine only where needed,
-   business modules bind to Doctrine directly (deviation from the unified-repository promise in
-   `persistence-architecture.md`), migrations only.
+   migrations only. Business modules reach it through `UnifiedEntityManager` as
+   `persistence-architecture.md` promises; ledger reports use DBAL of the same driver, no second
+   connection; a minimal transaction port (Doctrine only) covers what `RepositoryInterface` cannot
+   carry, concretely the `NumberRange` row lock (see «Settled before P0» at the top, 2026-09-21).
+   **Generated files and caches (owner requirement, 2026-09-21):** Doctrine's metadata/query caches
+   and any generated proxy files are disposable runtime state under the release-local `var/cache`
+   (ADR-034/035). In **DEBUG** they are regenerated on every request, so an entity change is visible
+   without a manual step; **«Cache leeren»** in the backend (`clearCacheAction()`) and toggling
+   DEBUG remove them as well. In wdv this was done by hand (`setup.php` deleted them) — here it is
+   the framework's job.
 3. **VAT model** — tax codes with dated rates as managed data, country packs, computed once on the
    invoice and carried, net posting method, discount/loss correction from the snapshot.
 4. **Ledger and money** — generated vs. manual entries, close states, change log, numbering, integer

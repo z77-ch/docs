@@ -347,9 +347,45 @@ layer, the `#[Entity]` contract, and the driver's known limits — lives in
 [persistence-architecture.md](../topics/persistence-architecture.md); the file-per-record
 rationale is [ADR-010](../02-decisions/adr-010-file-per-record-storage.md).
 
-SQL/Doctrine conventions (schema, migrations, query patterns) will be added here **when the
-Doctrine driver is built** — it is designed-for behind the same Repository API but not yet
-implemented. Until then there are no database-specific conventions to follow.
+A module that needs a relational database uses the **Doctrine driver**
+(`z77/persistence-doctrine`, [ADR-039](../02-decisions/adr-039-doctrine-driver-behind-unified-entity-manager.md))
+behind the same Repository API. What holds there:
+
+- **One connection config**: `config/client/database.inc.php`. Host, database name and
+  credentials live nowhere else — not in a module config, not in the backup config.
+- **Engine and encoding**: MariaDB 10.6+, InnoDB; `utf8mb4` / `utf8mb4_unicode_ci` for every
+  table and every string column. The driver sets it on the connection and as the table
+  default; a migration never names another collation.
+- **Entities announce themselves**: `#[Entity('doctrine')]` plus Doctrine's mapping
+  attributes, and the class listed under `doctrineEntities` in the module config — a
+  project's own entity in `override/z77/module/{module}/src/App/Config/doctrineEntitiesConfig.inc.php`
+  (a plain list, additive; never a copy of the module config). Nothing scans a directory.
+- **Money is `DECIMAL(15,2)`** through `MoneyType` (`#[ORM\Column(type: MoneyType::NAME)]` on
+  a `Money` property) — a decimal string in both directions, never a float, read in the
+  installation's base currency ([ADR-042](../02-decisions/adr-042-ledger-and-money.md)).
+- **Table and column names** are `snake_case` (JSON persistence keys follow the same rule —
+  the name is a key, see File Names); the PHP property stays `camelCase`.
+- **Schema only through migrations**, run from the CLI (ADR-039 decisions 12–14):
+  `php vendor/bin/z77-db migrate | status | diff | generate`. Never `SchemaTool`, never DDL
+  from a web request or a job.
+- **A module owns its migrations**: `res/migrations/` next to `src/`, namespace
+  `{Module}\Migrations`, class `Version{YmdHis}` — `z77-db diff --namespace="Z77\Module\X\Migrations"`
+  writes the draft, `generate` an empty one; `--namespace` is always required, and the
+  directory must exist before the first `diff`. Migrations run in timestamp order across all
+  modules. Review the generated `up()`: a table no entity maps is proposed for `DROP`.
+- **Every migration is expand/contract**: `current` and `next` are two releases on one database.
+  Add first (a column, a table, a nullable field), switch the release, remove in a LATER release.
+  Never rename or drop what the running release still reads; never combine a data migration
+  with a `DROP` in one file. `down()` is for development only.
+- **Collation in migrations**: `DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci` on every
+  `CREATE TABLE` (the generated draft carries it); never another one, never omitted.
+- **Deploy order**: run `z77-db migrate` on the NEW release (`next`) before switching `current`
+  to it. Then «Cache leeren» in the backend if the host runs `opcache.validate_timestamps = 0`
+  (see `persistence-doctrine.md` DOCTRINE-CACHE-001).
+
+Driver-specific behaviour a consumer must not depend on (flush scope, `remove()` timing,
+Identity Map, `reorder()`) is listed as known issues in
+[persistence-architecture.md](../topics/persistence-architecture.md).
 
 ---
 

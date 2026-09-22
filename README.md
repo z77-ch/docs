@@ -60,8 +60,9 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | backend, dashboard, service panel, user preferences, system pages | [topics/backend.md](topics/backend.md) |
 | backup, restore, z77-backup CLI | [topics/backup.md](topics/backup.md) |
 | content block types | [topics/block-types.md](topics/block-types.md) |
-| bootstrap, DI container, debug flag, systemConfig, canonical base URL / site address, installation identity, absolute URLs in mails | [topics/bootstrap.md](topics/bootstrap.md) |
+| bootstrap, DI container, debug flag, systemConfig, module config override / config merge, canonical base URL / site address, installation identity, absolute URLs in mails | [topics/bootstrap.md](topics/bootstrap.md) |
 | cache, DataCache, APCu, page cache | [topics/cache.md](topics/cache.md) |
+| contact / Kontakt, address / Adresse, address type / Adresstyp, ContactAddress, typed addresses, invoice address / delivery address, person / organisation, module-contact | [topics/contact.md](topics/contact.md) |
 | content, structured content, content files | [topics/content.md](topics/content.md) |
 | CSS/SCSS backend, werkbank | [topics/css-backend.md](topics/css-backend.md) |
 | CSS/SCSS dms | [topics/css-dms.md](topics/css-dms.md) |
@@ -70,12 +71,15 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | documents, DMS, drive, upload, delivery | [topics/documents.md](topics/documents.md) |
 | entities, hydration, entity data handling | [topics/entity-data-handling.md](topics/entity-data-handling.md) |
 | fetch, AJAX, CSRF, form validation | [topics/fetch.md](topics/fetch.md) |
+| financial / Finanzbuchhaltung, bookkeeping / ledger, account / Konto, chart of accounts / Kontenplan, KMU-Kontenrahmen, account type, fiscal year / Geschäftsjahr, period / Periode, period state, journal / Buchung / journal entry, journal line, posting / `PostingRequest` / `EntryRef`, `LedgerService`, idempotency key, reversal / Storno, manual entry / manuelle Buchung, change log / Änderungsprotokoll (`EntryChange`), number gap, journal-entry range, report / Auswertungen, trial balance / Saldobilanz, balance sheet / Bilanz, income statement / Erfolgsrechnung, account statement / Kontoblatt, `LedgerReports`, module-financial | [topics/financial.md](topics/financial.md) |
 | forms, public form / formular, contact form fields, form validation rules, honeypot, blur check | [topics/forms.md](topics/forms.md) |
 | i18n, languages, locale switching | [topics/i18n.md](topics/i18n.md) |
 | import, data adoption, seed records into existing installation, wdv migration, ImportIdentity | [topics/import.md](topics/import.md) |
+| money, amounts, Rappen, minor units, rounding 0.05, allocate, percentage | [topics/money.md](topics/money.md) |
 | installer, `composer install`, project setup | [topics/installer.md](topics/installer.md) |
 | jobs, cron, queue, scheduling, background work, z77-run CLI, throttling, long-running tasks | [topics/jobs.md](topics/jobs.md) |
 | login, auth, session, AccessGuard | [topics/login.md](topics/login.md) |
+| lottie, animation, `<lottie-figure>`, poster | [topics/lottie.md](topics/lottie.md) |
 | mail, email, e-mail versand / configure email sending, SMTP, contact form / kontaktformular, form mail, emailConfig, sender / from address, EmailService, backend mail settings | [topics/mail.md](topics/mail.md) |
 | member accounts, customer login / kundenlogin, passwordless, magic link, registration / registrierung, TOTP 2FA, stay signed in / angemeldet bleiben, device keys, invitation / einladung, grants, several tenants / mehrere Mandanten, tenant switch / mandantenwechsel | [topics/member.md](topics/member.md) |
 | messages, flash messages | [topics/messages.md](topics/messages.md) |
@@ -84,11 +88,13 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | packaging, monorepo split, Packagist, release/tagging | [topics/packaging.md](topics/packaging.md) |
 | persistence design, repositories, drivers | [topics/persistence-architecture.md](topics/persistence-architecture.md) |
 | file driver, JSON storage | [topics/persistence-file.md](topics/persistence-file.md) |
+| doctrine driver, MariaDB, database.inc.php, doctrineEntities, doctrineEntitiesConfig, project entity, DECIMAL / money column, charset / collation, z77/persistence-doctrine, transaction / getTransaction / run(), rollback, TransactionRolledBackException, NumberRange / gapless numbering / next(), openWorkChecks / openWorkChecksConfig / open-work check / period-close / stocktake block, NumberRange create() | [topics/persistence-doctrine.md](topics/persistence-doctrine.md) |
 | routing, router, Request, ControllerHandler | [topics/routing.md](topics/routing.md) |
 | security, hardening, setup token, password policy | [topics/security.md](topics/security.md) |
 | stylesheet, asset pipeline, AssetCleaner | [topics/stylesheet.md](topics/stylesheet.md) |
 | translation, Translator | [topics/translation.md](topics/translation.md) |
 | tree, hierarchy | [topics/tree.md](topics/tree.md) |
+| VAT, MWST, Mehrwertsteuer, tax code / Steuercode, TaxCode, TaxRate, rate valid from / gültig ab, VatCalculator, tax summary, price mode net / gross, country pack, ESTV, module-vat | [topics/vat.md](topics/vat.md) |
 | view layer, partials, HtmlView | [topics/view-layer.md](topics/view-layer.md) |
 | templates (create/change) | [01-handbook/templates.md](01-handbook/templates.md) |
 

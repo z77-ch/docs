@@ -14,6 +14,32 @@ not obvious from the message — a short why / follow-up. Keep it terse.
 
 ---
 
+## 2026-09-21
+
+### PHP 8.5 on the maintainer machine; `setAccessible()` removed
+
+- Maintainer machine moved from PHP 8.4.20 to **8.5.10** (infra, no commit; procedure in
+  `docs/_local/maintainer-machine-runbook.md`). All `tests/*.php` green.
+- 8.5 deprecates `ReflectionProperty::setAccessible()` (no effect since 8.1). Removed from
+  `ArrayMappable::mapToArray()` — fired on every entity serialisation — and from the debug
+  helper `getAllPropertiesRecursive()`. Safe on the kernel's `php >=8.2`.
+
+### P0 closed, P1 started; MariaDB on the maintainer machine
+
+- ADR-039 to ADR-043 written and approved (P0 of the order/debtor/financial plan). ADR-039 got
+  an independent review (Fable) before approval, and on the same day decisions 17/18: MariaDB
+  10.6 minimum, `utf8mb4` / `utf8mb4_unicode_ci` throughout (plan Q8 had asked for it).
+- P1: `Money` in the kernel (`shared/src/Money`, `tests/money.php`, topic `money.md`).
+- Infra, no commit: MariaDB 10.6.28 installed locally for the Doctrine driver's tests
+  (localhost only, scoped test user `z77test`), `pdo_mysql` enabled. Setup in
+  `docs/_local/maintainer-machine-runbook.md`.
+
+### Persistence access for the business modules decided (order/debtor/financial plan)
+
+- Unified API via `UnifiedEntityManager`, two drivers (File, Doctrine), ledger reports on DBAL
+  of the same driver, minimal transaction port. Owner requirement: Doctrine caches regenerate in
+  DEBUG and go with «Cache leeren». Input for ADR 2 (P0).
+
 ## 2026-09-13
 
 ### module-member: ADR-038 built — the member is the person, memberships are the project's

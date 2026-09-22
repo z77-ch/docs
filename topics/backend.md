@@ -1,6 +1,6 @@
 # backend
 
-2026-09-01
+2026-09-22
 
 ## entry
 
@@ -77,6 +77,8 @@ Backend groups exist for UI organisation only — they are NOT business-domain b
 | `content` | `navigation` | Content management: navigation CRUD, content documents, SEO metadata (see [`metadata.md`](metadata.md)), future stylesheet editor |
 | `users` | `user` | User management — placeholder; controller not yet built (navigation entry `id:7` 404s on purpose) |
 | `service` | `backup` | Installation service tools (topbar section «Service»): backups (SUPER_USER, see [`backup.md`](backup.md)) + form-mail settings (ADMIN, see [`mail.md`](mail.md)) |
+| `finance` | `tax-code` | Business master data and bookkeeping of the order/debtor/financial plan (ADR-040): tax codes (fragment of `module-vat`, see [`vat.md`](vat.md)), chart of accounts, fiscal years, the journal and the ledger reports (`account`, `fiscal-year`, `journal`, `report` — fragments of `module-financial`, see [`financial.md`](financial.md); the journal's add/edit are PAGE form posts guarded by `#[Csrf]`, not modals; `report` has no list — its `defaultAction` is `trial-balance`, a deviation entry in `backendConfig` → `controllers` → `finance`); invoices later. Resolves only in projects that install the owning module |
+| `contact` | `contact` | Contacts with typed addresses and the address types (fragments of `module-contact`, see [`contact.md`](contact.md)). Proposed group, not owner-confirmed yet |
 
 ## controllers
 
@@ -98,8 +100,8 @@ Backend groups exist for UI organisation only — they are NOT business-domain b
 
 | Action | Method | Purpose |
 |---|---|---|
-| `clearCacheAction` | POST | Clears APCu (`CacheManager::clearAllApcu`), `PageCache::clearAll`, versioned assets (`AssetCleaner::clearAll` with 30s grace). Returns `FetchResponse` with deleted-asset count. |
-| `toggleDebugAction` | POST | Toggles DEBUG by creating/deleting `var/state/debug.flag` (release-local since ADR-035 — the staging door can be in debug mode while production is not) (see [`bootstrap.md`](bootstrap.md)), then clears APCu + PageCache so stale entries from the previous DEBUG state cannot be served. |
+| `clearCacheAction` | POST | Clears APCu (`CacheManager::clearAllApcu`), `PageCache::clearAll`, the generated PHP directories (`CacheManager::generatedPhp()->clearAll()` — Doctrine's compiled metadata under `var/cache/doctrine/`, every file deleted AND invalidated in OPcache; a no-op without the package, see [`cache.md`](cache.md)) and versioned assets (`AssetCleaner::clearAll` with 30s grace). The flash names the counts. |
+| `toggleDebugAction` | POST | Toggles DEBUG by creating/deleting `var/state/debug.flag` (release-local since ADR-035 — the staging door can be in debug mode while production is not) (see [`bootstrap.md`](bootstrap.md)), then clears APCu + PageCache + the generated PHP directories so stale entries from the previous DEBUG state cannot be served (Doctrine compiles its metadata to files only when DEBUG is off — ADR-039 decision 11). |
 | `toggleNoindexAction` | POST | Toggles the site-wide crawl block by creating/deleting `var/state/noindex.flag` (release-local since ADR-035 — `next` can carry `noindex` without taking production out of the index) (constant `SEO_NOINDEX`, see [`bootstrap.md`](bootstrap.md) / [`metadata.md`](metadata.md) SEO-NOINDEX-001), then clears APCu + PageCache so cached frontend pages re-render with/without the `robots` meta. Returns `data.noindex`. |
 | `toggleDebugAction` (min-check) | — | On switching debug OFF it additionally scans all module-level `layoutConfig` JS entries for missing `.min.js` variants and flashes the admin the list (JS-MIN-FALLBACK-001, see [`stylesheet.md`](stylesheet.md)). |
 | `savePreferencesAction` | POST | Persists the appearance fields into `UserPreferences` on the `BackendUser` JSON — starts from the stored preferences so fields owned elsewhere (e.g. `partial_labels`, PARTIAL-LABELS-002) survive. |
@@ -259,6 +261,7 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 
 ## rules
 
+- When a module's backend FRAGMENT (a `…ControllerTrait` mounted by a thin host controller, ADR-018) needs a header slot or a tab row → MUST ship the partial in the fragment's own module and add it from the trait with `$this->layoutManager->addPartials($name, $path, $nameSpace, 'hc1' | 'hc2' | 'tabs')` after `html()`; MUST NOT put `{action}.hc1|hc2|tabs` files for it under module-backend's templates — the auto-loader resolves those in the backend namespace only and ties the slot to one mount (the financial screens follow this; module-vat and module-contact still carry host files, pending in `financial.md`)
 - When adding a new backend controller (HTML or Fetch) → MUST extend `BackendAbstractController`; MUST be placed inside the matching group subdirectory (`System/`, `Content/`, …) with the namespace `Z77\Module\Backend\Ui\Controllers\{Group}`; `userPreferences` is auto-injected; MUST NOT load `BackendUser` manually for preferences
 - When adding a backend controller that matches the module baseline (ADMIN role, `list` default action) → MUST NOT add a `controllers` entry in `backendConfig.inc.php` — the fallback chain covers it (deviation-only, AUTH-B003). An entry is added ONLY for a deviation: looser/stricter role (GUEST login/setup, SUPER_USER backup) or a different defaultAction (dashboard `overview`, document `preview`). New groups still go into `groupDefaults`.
 - When constructing a backend URL in templates or JS → MUST use the 4-segment form `/backend/{group}/{controller}/{action}` (e.g. `/backend/system/login/login`, `/backend/content/navigation/list`); MUST NOT use the old 3-segment form

@@ -1,6 +1,6 @@
 # Bauplan — order, debtor, financial, vat, contact, article
 
-**Status:** `[CONCEPT]` → P0 closed 2026-09-21 (ADR-039 to ADR-043 approved). P1 closed 2026-09-21. P2 parts 1–3 built 2026-09-22. P3 part 1 (debtor master data) built 2026-09-22. P3 part 2 (`InvoicingService`, the accounting port) built 2026-09-23. **The mandator (`module-mandator`, owner decisions E1 / E2) built 2026-09-23, awaiting review**. **P2 exit check passed 2026-09-24 — P2 closed**; next P3 part 3 (PDF / QR-bill, document screens).
+**Status:** `[CONCEPT]` → P0 closed 2026-09-21 (ADR-039 to ADR-043 approved). P1 closed 2026-09-21. P2 parts 1–3 built 2026-09-22. P3 part 1 (debtor master data) built 2026-09-22. P3 part 2 (`InvoicingService`, the accounting port) built 2026-09-23. **The mandator (`module-mandator`, owner decisions E1 / E2) built 2026-09-23, awaiting review**. **P2 exit check passed 2026-09-24 — P2 closed**; next P3 part 3 (PDF / QR-bill, document screens). **P5 part 1 (closing a fiscal year) built 2026-09-30**, not verified live.
 **Date:** 2026-09-18, updated 2026-09-21 (article model A1–A7 decided, Q7 answered, module cut and
 build phases final, all questions answered, external review worked in; the persistence-access
 question reopened ADR 2 on 2026-09-20 and was settled on 2026-09-21)
@@ -8,7 +8,7 @@ question reopened ADR 2 on 2026-09-20 and was settled on 2026-09-21)
 in wdv-6.2.2 and decisions D1–D8 (§7 there). This plan does not repeat the wdv analysis.
 **ADRs:** ADR-039 to ADR-043, approved 2026-09-21 (§10).
 
-## Where we continue (as of 2026-09-22)
+## Where we continue (as of 2026-10-06)
 
 **What this plan builds:** order processing open to many sources, financial bookkeeping, receivables
 management, article management. Nothing else. Subscriptions, shipping and a shop are applications on
@@ -233,6 +233,119 @@ record. Harness `tests/module-mandator.php`, 96 checks; `module-financial` (368)
 `module-debtor` (275) adapted and green. **Next: P3 part 3 — PDF with QR-bill and the document screens**
 (list, draft editor with active codes and accounts, re-issue and finalize with versions, the credit-note
 form; the payment target's creditor block and second IBAN field per the pending in `debtor.md`), then P4.
+
+**P5 part 1 built (2026-09-30, owner decisions of the same day) — closing a fiscal year.** Only the
+whole YEAR is closed (every period `closed`), in order (after the year before it; reopening in
+reverse), an ADMIN reopens with a mandatory reason, and every close and reopen writes a protocol row
+(`fiscal_year_close_log`, migration `Version20260930120000`). `FiscalYearCloseService` owns its unit
+of work, locks the fiscal-year rows and the periods and re-checks order and the close check under the
+lock; the close check is the open-work registry (scope `period-close`) — debtor's
+`InvoicingInProgressCheck` blocks on documents still in `invoicing` dated in the year (payments /
+CAMT follow with P4). Every write into the journal now re-reads its period's state share-locked, so a
+close cannot slip past a posting in flight. Screen: Finanzen › Geschäftsjahre (state badge, «Jahr
+abschliessen …» with the findings and the warning confirmation, «Wieder öffnen …» for admins, the
+protocol under each year). Recorded for P5 part 2: the owner's decision that postings into VAT-filed
+periods stay allowed and the last return of the year balances them (§5.3, §5.6). Harness:
+`tests/module-financial.php` YC1–YC43, `tests/module-debtor.php` N1–N5; topic
+[`financial.md`](../topics/financial.md) («P5 part 1», FIN-CLOSE-001). **Next in P5:** part 2, the VAT
+return; then the year-end carry-forward (§5.7).
+
+**P3 part 3 built (2026-09-30, owner go of the same day) — the payment part and the document screens;
+the PDF stopped at the library question.** The payment target got its two IBAN fields (QR-IBAN →
+QRR, plain IBAN → NON) and the creditor block of the account holder with the mandator's address as
+the field-by-field fallback, shown EFFECTIVE on the screen. The payment part became a SNAPSHOT on the
+document (`PaymentSnapshot`, eleven `pay_*` columns, migration `Version20260930150000`): target by
+code, account, reference type, the QR reference from the number (modulo 10 recursive), message and
+creditor as resolved — a credit note has none. `QrBill` builds the payload of the SIX guidelines
+v2.x (`0200`, 31 elements, ≤ 997, extended Latin) from the snapshot only, and reports German
+problems instead of failing («degrade quietly»). The document screens under «Aufträge» ›
+«Rechnungen» (`/backend/finance/invoice`): the list per view (in Fakturierung / definitiv /
+Gutschriften) with the journal list's search, sort and paging; the detail from the snapshot with
+the payment part and the ledger reference as a journal window (financial's journal detail answers
+`?ref=`); the editor (new, re-issue with `version`, credit note prefilled from the invoice) with the
+shared pickers (module-vat `taxCodeSelect` + `selectable()`, module-mandator `accountDatalist`); the
+finalize batch carrying `{id}:{version}` per row through a confirmation. `Paging`, the pager and
+`AmountFormat` moved to the kernel `shared` (Rule 8). **Not built: the PDF** — the framework has no
+PDF library; the options (own minimal writer, FPDF, TCPDF, dompdf, sprain/swiss-qr-bill) and the
+agreed later storage (module-dms `Kunden/<Kunde>/`, P7 per order, never replace a final PDF — GeBüV,
+needed by P5b) are in [`debtor.md`](../topics/debtor.md) `## pending`, with the decisions taken on
+the owner's behalf to confirm. Harness `tests/module-debtor.php` 339 checks (`P3C1`–`P3C58`, incl. the fixes of the independent review the same day — no blocker). **Next:**
+the owner's PDF decision (then the PDF in its own step), P4 (payments, CAMT.054, dunning), P5 part 2.
+
+**P3 part 3 completed (2026-10-06, owner decisions of the same day) — the customer number, the
+wdv-630 reference layout, the PDF.** The debtor profile carries an OWN customer number (range
+`customer`, drawn in `DebtorProfileService::save()` as the first write, starts at 1000, the real
+numbers come with the wdv import — not the record id: offices identify customers by a number). The
+QR reference is built exactly like wdv-630 `InvoiceManager::getReferenceNo()`: ten zeros (the
+bank's place, no BESR-ID field — the orange slip is gone), the customer number (6), the document
+number (10), the check digit. The PDF library is **FPDF**, vendored into the kernel like bacon,
+behind the facade `Z77\Shared\Pdf\PdfDocument`, the LAYOUTS as partials (`pdf/invoice`, `pdf/qrBill`,
+the shared `pdf/table` / `pdf/addressWindow`, module-mandator's `pdf/letterhead`) — the owner's
+condition for a central PDF tool («schöne Layouts über Partials»; data sheets will follow).
+`BytesResponse` / `$this->bytes()` serves it inline, nothing is stored. Harness: `tests/pdf.php`
+(19), `tests/module-debtor.php` 352. Decisions (a)–(d) of 2026-09-30 confirmed. Commits `6c400b7`,
+`c36ed73`, `908da2c`. [`pdf.md`](../topics/pdf.md), [`debtor.md`](../topics/debtor.md). **Live test
+in z77.ch handed over the same day** (the project's `docs/handoff-2026-10-06-debtor-live-test.md`):
+the first real QR-bill goes to the SIX validation portal. **Next:** P4 (payments, CAMT.054, dunning),
+P5 part 2.
+
+**P4 part 1 built (2026-10-06, owner go of the same day) — payments, discount and loss (§6.3).**
+`Payment` (one settlement event: value date, the money that moved on a payment target, or a
+write-off) with its `PaymentAllocation`s on ONE final invoice — `payment` / `discount` / `loss`,
+each posted through the accounting port in the same unit of work, one journal entry per
+allocation (the receivable cleared; Skonto and Verlust reduce turnover AND VAT per tax code of
+the document with the credit note's sign convention, `Money::allocate` to the Rappen). The open
+amount stays DERIVED (gross − final credit notes − allocations); the plan's `OpenItem` question is
+answered with NO table, and the plan's allocation kind `fee` does not exist: a dunning fee is a
+DOCUMENT of its own kind (owner decision 2026-10-06, built in part 3). One write path
+`PaymentService::record(PaymentDraft)` with stable refusal reasons, the invoice row locked before
+any journal number, a ledger refusal rolling the settlement back whole; the screen «Zahlung
+erfassen» on the detail of a final invoice, the settlements listed there. Tables `payment` /
+`payment_allocation`, migration `Version20261006150000`. **Owner decisions the same evening,
+built on top:** (1) a wrong payment is corrected or deleted, never countered; (2) a settlement is
+changed or removed in the DEBTOR module while the year is open, and its Fibu postings with it —
+in place, same journal number, logged like a manual edit; the journal screen never edits a
+generated entry (ADR-042 addendum 2026-10-06: `LedgerService::amend()` / `retract()`, the
+accounting port grew by `amend()` / `retract()`); (3) the account the money went to is chosen on
+the form (bank, cash register, a clearing account — the target's account is the proposal);
+(4) «Rest als Verlust ausbuchen»: the amount typed, the difference to the open amount to the loss
+account. Harness `tests/module-debtor.php` `Q1`–`Q25`, `tests/module-financial.php` K2.
+**Next:** P4 part 2 (CAMT.054, overpayment / unmatched remainder, the open-work check for
+unbooked transactions), P4 part 3 (dunning, the fee as a document kind), P5 part 2.
+
+**P4 part 2 built (2026-10-07) — the CAMT.054 import (§6.4).** `BankMessage` (the bank's
+notification, `MsgId` unique — the dedup across imports — with the IBAN and the payment target it
+resolved to) and `BankTransaction` (one credit with its reference, dates, amount, remittance and
+debtor as sent, unique per message by the bank's transaction reference; the receivables side's
+state `unmatched` / `matched` / `booked` / `ignored`, the matched invoice, the payment that booked
+it, the remainder, a note). `CamtReader` reads camt.054.001.04 / .08 into data; `BankImportService`
+imports (every entry stored, classified — a QRR names customer number and document number, the
+wdv-630 layout read back; a NON by the «Rechnung n» in the message, a proposal), lets the office
+assign and ignore, and books every matched transaction of a message in ONE unit of work through
+`PaymentService::record()`: several credits for one invoice in one file placed one after the other
+(what wdv missed), a credit above the open amount books the open amount and keeps the remainder,
+a settled invoice books nothing. `UnbookedTransactionsCheck` blocks the year close for received,
+unbooked credits (§5.3, the P4 half of the period-close pending — done). Screens under «Aufträge»
+› «Zahlungseingänge» (`/backend/finance/bank-import`): list with the upload, the message detail
+with the actions. Tables `bank_message` / `bank_transaction`, migration `Version20261007100000`.
+Harness `tests/module-debtor.php` `R1`–`R19`. **Next:** P4 part 3 (dunning, the fee as a document
+kind), P5 part 2; the first real camt.054 of the owner's bank is the live test (DEBTOR-CAMT-001).
+
+**P4 part 3 built (2026-10-07) — dunning, the fee as a document kind (§6.5). P4 is complete.**
+`InvoiceKind::Fee` («Gebühr»): a document on the `invoice` table — one lump-sum line without VAT on
+the mandator's dunning-fee account, the debtor's terms, the invoice's payment target, its own QRR
+— drawing from the INVOICE number range (one number space for everything payable: the QR reference
+carries only the number). `DunningRun` / `DunningNotice` (the invoice, the level by code and number
+as it was, the open amount then, the fee document issued with it). `DunningService`: the due list as
+of a day (open invoices of active, unblocked debtors whose next level of the active ladder is due,
+one query for the open amounts), the run in one unit of work (each invoice judged again under the
+lock, the notice at the next level, the fee document issued and finalized — posted — with it). The
+notice PDF (`pdf/dunningNotice`) bills open + fee under the invoice's reference; the CAMT booking
+places what exceeds the invoice on the debtor's open fee documents first. Screens under «Aufträge»
+› «Mahnungen» (`/backend/finance/dunning`): the due list with «Mahnlauf starten», the runs with
+their notices and PDFs; the invoice detail shows the history. Tables `dunning_run` /
+`dunning_notice`, migration `Version20261007150000`. Harness `tests/module-debtor.php` `T1`–`T15`.
+**Next:** P5 part 2 (the VAT return), P5b (the owner's migration); the live test of P3/P4 in z77.ch.
 
 Open for the owner: `persistence-doctrine`, `module-vat` and `module-contact` are not split targets
 yet (`.github/workflows/split.yml`, Packagist). Working method that carried P1: each building block
@@ -530,6 +643,34 @@ What this plan builds from A1–A4: the **product group tree** (one placement, c
 account, VAT default and turnover statistics), **product + variant**, **prices with history**, the
 **article number on the variant**, and stock (§4b below). That is what an order line needs.
 
+**Extendable master data (owner, 2026-10-08).** module-article is the reference example of
+[ADR-039 addendum 2026-10-08](../02-decisions/adr-039-doctrine-driver-behind-unified-entity-manager.md)
+(b), on **both** stages of A3: `AbstractProduct` + an **empty** `Product`, `AbstractVariant` + an
+**empty** `Variant` (`#[ORM\MappedSuperclass]` abstract classes carry every standard field, mapping
+and logic; the empty classes carry only the entity mapping). A project that needs its own columns
+overrides only the empty class of the stage concerned under `override/` and migrates those columns
+in its own `override/z77/project/res/migrations/` (`z77-db setup`). Example (Agostini): `Product`
+gains `rebsorte`, `aocText` — the same for every vintage; `Variant` gains `ean`, `offerPrice` —
+different per bottle.
+
+**Variant options are DATA, not code (owner, 2026-10-08).** A product names the options its variants
+differ by — none (a service: one hidden default variant), one (olive oil: content), two or three
+(Giovanni's Barolo: vintage × size; a T-shirt: colour × size). Every existing COMBINATION is one
+variant row with its own number, price and stock; a combination that does not exist has no row
+(Barolo 2024 in 150 cl). The shop shows one selector per option. Still two stages — vintage and size
+are two options of ONE variant, never product → vintage → size. Because the option names and values
+are entered in the backend, no project needs an override for «colour instead of vintage». Rule of
+thumb: *what the customer chooses between* → an option (data); *a field the framework does not
+know* (grape, EAN, offer price) → the abstract pattern (override + migration). Distinct from the
+typed attributes per product group below (classification and shop facets, deferred).
+
+**Configurable products are NOT variants (owner, 2026-10-08).** A product assembled at order time
+(a car: paint × rims × engine × upholstery × accessories — thousands of combinations, almost none on
+stock; also print jobs, made-to-measure furniture, gift baskets) must not be modelled as variants.
+It is a separate concept, not built now: option groups with a surcharge per option on the product,
+the chosen options stored on the ORDER LINE (base price + surcharges), no own number or stock per
+combination. Recorded so module-article is not bent towards it.
+
 **What A1 implies but this plan deliberately does not build** — the review of 2026-09-20 pointed out
 that none of it has a consumer here, and a shop is out of scope (§13), so building it now would be
 exactly the "in stock" the guiding rule forbids. It belongs to the shop module's concept:
@@ -707,12 +848,18 @@ open ──(VAT return filed)──→ vat-settled ──(accounting close)─�
 - `vat-settled`: the VAT return for the period is posted and filed with the ESTV. **Decided
   (Q3):** filing closes the return — the return itself and every line carrying a tax code in that
   period can no longer change (it is filed). Manual entries without tax code stay editable until
-  the accounting close.
+  the accounting close. **Changed by the owner 2026-09-30 (for P5 part 2):** postings into periods
+  already covered by a filed VAT return stay ALLOWED — lines with a tax code included — and are
+  balanced by the LAST VAT return of the year, which computes the adjustment. The filed return
+  itself stays unchanged; `vat-settled` no longer freezes tax lines (ADR-042 addendum 2026-09-30).
 - `closed`: nothing changes. Only a reversal in an open period can correct.
 - **Close check (decided 2026-09-18).** Before the VAT return and before the accounting close,
   financial asks every registered `PeriodCloseCheck` (an interface in financial; modules register
   an implementation by config hook — financial knows none of them): "anything open for this
-  period?". Each finding is `blocking` or `warning`.
+  period?". Each finding is `blocking` or `warning`. **Built 2026-09-30 as the open-work registry
+  of persistence-doctrine** (§2 — `OpenWorkCheckInterface`, config key `openWorkChecks`, scope
+  `period-close`, parameters `fiscalYear`, `from`, `to`): the registry IS the «interface plus config
+  hook» this bullet asks for; no second interface in financial.
   - debtor, **blocking**: invoices in state `invoicing` dated in the period; payments/CAMT
     transactions not yet booked.
   - order, **warning** (proposal): invoiceable orders with service date in the period — under agreed
@@ -721,6 +868,14 @@ open ──(VAT return filed)──→ vat-settled ──(accounting close)─�
     of defence regardless of the check.
 - **Change log** for manual entries (decided, Q4): every edit/delete writes an `EntryChange` (who,
   when, before/after). Keeps "editable until close" traceable in the sense of the GeBüV.
+- **The accounting close — owner decisions 2026-09-30 (P5 part 1, built):** only the whole YEAR is
+  closed (all its periods `closed`, no month-by-month close in the UI); IN ORDER — a year closes only
+  after the year before it, reopening goes in reverse (only the latest closed year); an ADMIN can
+  REOPEN a closed year with a mandatory reason; every close and reopen is written to a protocol
+  (`fiscal_year_close_log`: who, when, why / the confirmed warnings — GeBüV). This amends «a period
+  moves one way» (ADR-042 decision 10, addendum 2026-09-30). The ledger's refusal stays the last line
+  of defence and now re-reads the period state under a share lock, so a close and a posting in
+  flight serialise (`financial.md`, «P5 part 1»).
 - Numbering: entry numbers per fiscal year from `NumberRange`. A deleted manual entry leaves a gap,
   documented by its change log entry.
 
@@ -750,6 +905,13 @@ ESTV form fields. Mixed rates within a period come out automatically. Saving the
 settlement entry (VAT payable / input tax → settlement account) through `LedgerService` and sets the
 period `vat-settled`. Rounding difference between return and ledger: posted to the VAT-return rounding account,
 shown, never silently absorbed.
+
+**Owner decision 2026-09-30 (to build in P5 part 2):** a posting into a period whose return is already
+filed is allowed (also with a tax code); the LAST VAT return of the fiscal year computes the
+adjustment — the difference between what the year's lines now sum to per code and rate and what the
+earlier returns of the year declared. How the adjustment is reported to the ESTV is part 2's design.
+This replaces the freeze of Q3 (§5.3). Part 2 also decides what the admin reopen of a closed
+year (P5 part 1) restores for a `vat-settled` period.
 
 ### 5.7 Year-end
 

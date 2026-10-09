@@ -1,6 +1,6 @@
 # ADR-042 — Ledger and money: integer money, generated vs. manual entries, close states
 
-**Status:** `[APPROVED]` — approved by the owner 2026-09-21 (P0 of [`order-debtor-financial-bauplan.md`](../03-development/order-debtor-financial-bauplan.md))
+**Status:** `[APPROVED]` — approved by the owner 2026-09-21 (P0 of [`order-debtor-financial-bauplan.md`](../03-development/order-debtor-financial-bauplan.md)); addendum 2026-09-30 (owner decisions on the close, below)
 **Date:** 2026-09-21
 
 ---
@@ -112,3 +112,52 @@ rules for money and for what may change after posting must hold from the first e
 | Delete and re-post on correction (wdv) | Loses what happened; the correction principle demands a counterpart |
 | Header and lines stored twice (wdv) | Two truths about one entry |
 | Year-end blocked by order state (wdv) | Couples the ledger to a module it must not know |
+
+## Addendum 2026-09-30 — closing a fiscal year, the admin reopen, VAT-filed periods (owner decisions)
+
+Three owner decisions of 2026-09-30 amend the close states (decisions 10–11):
+
+1. **Only the whole year is closed**, in order. Closing a fiscal year sets every period of it
+   `closed` (no month-by-month close); a year closes only after the year before it. Decision 12
+   (the year-end) is unchanged — the carry-forward still follows.
+2. **An admin can reopen a closed year**, with a mandatory reason, in reverse order (only the latest
+   closed year). Every close and every reopen is written to a protocol (who, when, why — the
+   warnings the closer confirmed). This amends «a period moves one way» of decision 10: `closed` →
+   `open` exists, for the whole year, by an admin, traceable. Built in P5 part 1
+   (`FiscalYearCloseService`, [`financial.md`](../topics/financial.md)).
+3. **VAT-filed periods stay open for postings** (for P5 part 2, not built): a posting into a period
+   whose VAT return is filed is allowed — also a line with a tax code — and the LAST VAT return of the
+   year computes the adjustment. This replaces the freeze of tax lines at `vat-settled` in decision
+   10 and in the consequence «A manual entry changed after the VAT return that carries a tax code is
+   refused». Until part 2 is built, the ledger keeps refusing tax lines in a `vat-settled` period —
+   no period reaches that state before the return exists.
+
+Decision 11 (the close check) is built as the open-work registry of ADR-039 decision 15 (scope
+`period-close`); the «`PeriodCloseCheck`» of its wording is that registry's check interface.
+
+## Addendum 2026-10-06 — a generated entry is corrected by its source, in place (owner decision)
+
+Decision 7 said a generated entry is never edited or deleted, only reversed. The owner changed
+that when the first settlements were recorded («manuelle Buchungen sind tippfehleranfällig —
+der Sachbearbeiter muss korrigieren können, ohne komplizierte Stornobuchungen»):
+
+1. **A generated entry is changed or removed ONLY by the module that posted it**, through
+   `LedgerService::amend($idempotencyKey, $new)` and `LedgerService::retract($idempotencyKey,
+   $sourceType)`, inside that module's unit of work. The source names what it posted by the
+   idempotency key, never by a number; a request from another `sourceType` is refused.
+2. **The journal screen never edits a generated entry** — it stays shown-only there, as before.
+   The bookkeeper corrects a manual entry; a settlement is corrected in the debtor module, which
+   changes the Fibu posting with it.
+3. **Every amend and retract writes an `EntryChange`** (who, when, before / after), exactly like
+   a manual edit or delete — the change log is the traceability the GeBüV asks for. A retracted
+   entry leaves its number as a documented gap (decision 9 unchanged).
+4. **The same period rules as a manual edit**: `closed` refuses, `vat-settled` refuses when a
+   tax line is involved, a date in another fiscal year is refused (retract and post anew). An
+   entry that was reversed, or is a reversal, is frozen — the reversal pair stays the correction
+   of record for anything a source no longer owns the shape of.
+5. **`reverse()` stays** for the cases a module chooses it (a correction after the period
+   closed, a counterpart the books should show). Decision 8 (the correction principle) holds
+   for documents and orders; for a SETTLEMENT the owner prefers the corrected posting over a
+   storno pair.
+
+First consumer: module-debtor's `PaymentService::update()` / `delete()` (P4 part 1).

@@ -31,7 +31,9 @@ recipes — what a project follows when building).
 | [architecture.md](01-handbook/architecture.md) | How the framework is structured |
 | [conventions.md](01-handbook/conventions.md) | Coding standards, namespaces, file names |
 | [css-conventions.md](01-handbook/css-conventions.md) | CSS/SCSS standards: BEM, tokens, components |
+| [shell-regions.svg](01-handbook/shell-regions.svg) | Shell-region glossary as a picture: backend and member side by side, German word + job name + class per region (text version: [css-backend.md → shell regions](topics/css-backend.md#shell-regions-glossary)) |
 | [templates.md](01-handbook/templates.md) | Template layer: location, context injection, partials |
+| [backend-screen.md](01-handbook/backend-screen.md) | Building a backend area: action cell, rail-top selection, toolbar, controls, standard lists, help, checklist (owner rules 2026-10-08) |
 | [installer.md](01-handbook/installer.md) | Composer installer: configuration, generated files, directory structure |
 | [release-structure.md](01-handbook/release-structure.md) | Zero-downtime deploys on shared hosting: shared/releases/current/next, SSH setup, switch mechanics |
 | [vision.md](01-handbook/vision.md) | Why this framework, goals, scope |
@@ -57,6 +59,7 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 |---|---|
 | alert, alarm, outage notification, operator mail/SMS, escalation, monitoring signal | [topics/alert.md](topics/alert.md) |
 | API, /api, module-api, bearer key, tenant key, stateless route, ApiKeyGuard, JSON endpoint, data broker | [topics/api.md](topics/api.md) |
+| new backend area / screen, action cell, Aktionszelle, where does a button go, toolbar, tabs, switch, help button | [01-handbook/backend-screen.md](01-handbook/backend-screen.md) |
 | backend, dashboard, service panel, user preferences, system pages | [topics/backend.md](topics/backend.md) |
 | backup, restore, z77-backup CLI | [topics/backup.md](topics/backup.md) |
 | content block types | [topics/block-types.md](topics/block-types.md) |
@@ -77,6 +80,7 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | i18n, languages, locale switching | [topics/i18n.md](topics/i18n.md) |
 | import, data adoption, seed records into existing installation, wdv migration, ImportIdentity | [topics/import.md](topics/import.md) |
 | mandator / Mandant, own company / eigene Firma, letterhead / Briefkopf, UID / Unternehmens-Identifikationsnummer, `CHE-`, VAT liability / mehrwertsteuerpflichtig, default tax code / Standard-MWST-Code, account settings / Kontenzuordnung, `vatAccounts` (moved), `debtorAccounts` (moved), `CurrentMandator`, `MandatorAccounts`, `LedgerAccountCheck`, `vatAccountFor`, letterhead vs. payee / Zahlungsempfänger, multi-mandator / Mehrmandant, module-mandator | [topics/mandator.md](topics/mandator.md) |
+| list, table, backend list, column search, magnifier, sort link, pager, paging, ListDefinition, Column, Parsers, listHead, listFind, fetch region list | [topics/listing.md](topics/listing.md) |
 | money, amounts, Rappen, minor units, rounding 0.05, allocate, percentage | [topics/money.md](topics/money.md) |
 | installer, `composer install`, project setup | [topics/installer.md](topics/installer.md) |
 | jobs, cron, queue, scheduling, background work, z77-run CLI, throttling, long-running tasks | [topics/jobs.md](topics/jobs.md) |
@@ -100,6 +104,7 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | tree, hierarchy | [topics/tree.md](topics/tree.md) |
 | VAT, MWST, Mehrwertsteuer, tax code / Steuercode, TaxCode, TaxRate, rate valid from / gültig ab, VatCalculator, tax summary, price mode net / gross, country pack, ESTV, module-vat | [topics/vat.md](topics/vat.md) |
 | view layer, partials, HtmlView | [topics/view-layer.md](topics/view-layer.md) |
+| PDF, FPDF, PdfDocument, PDF partials, QR-bill payment part, BytesResponse | [topics/pdf.md](topics/pdf.md) |
 | templates (create/change) | [01-handbook/templates.md](01-handbook/templates.md) |
 
 ### [02-decisions/](02-decisions/) — Architecture Decision Records (ADRs)

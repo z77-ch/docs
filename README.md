@@ -79,12 +79,14 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | forms, public form / formular, contact form fields, form validation rules, honeypot, blur check | [topics/forms.md](topics/forms.md) |
 | i18n, languages, locale switching | [topics/i18n.md](topics/i18n.md) |
 | import, data adoption, seed records into existing installation, wdv migration, ImportIdentity | [topics/import.md](topics/import.md) |
+| article / Artikel, product / variant, Produkt / Variante, article number / Artikelnummer, price history / Preisverlauf, «gültig ab», führt Bestand / stock relevant, `ArticleService`, `ArticleDraft`, `AbstractProduct`, `AbstractVariant`, stock seam / Lager-Schnittstelle, `StockLedger`, `StockRequest`, `StockLineTarget`, `PendingStockLedger`, `StockLedgers`, reservation / Reservierung, module-article | [topics/article.md](topics/article.md) |
+| order / Auftrag, quote / Offerte, sales order, `SalesOrder`, `SalesOrderLine`, order status / Auftragsstatus, `OrderStatus`, order phase / Phase, `OrderPhase`, phase default / Vorgabe, order confirmation / Auftragsbestätigung, status log / Verlauf, `OrderService`, `OrderDraft`, `OrderStatuses`, transition / Statuswechsel, `OrderInvoiceDraft`, `OrderStockTargets`, number range `order`, module-order | [topics/order.md](topics/order.md) |
 | mandator / Mandant, own company / eigene Firma, letterhead / Briefkopf, UID / Unternehmens-Identifikationsnummer, `CHE-`, VAT liability / mehrwertsteuerpflichtig, default tax code / Standard-MWST-Code, account settings / Kontenzuordnung, `vatAccounts` (moved), `debtorAccounts` (moved), `CurrentMandator`, `MandatorAccounts`, `LedgerAccountCheck`, `vatAccountFor`, letterhead vs. payee / Zahlungsempfänger, multi-mandator / Mehrmandant, module-mandator | [topics/mandator.md](topics/mandator.md) |
 | list, table, backend list, column search, magnifier, sort link, pager, paging, ListDefinition, Column, Parsers, listHead, listFind, fetch region list | [topics/listing.md](topics/listing.md) |
 | money, amounts, Rappen, minor units, rounding 0.05, allocate, percentage | [topics/money.md](topics/money.md) |
 | installer, `composer install`, project setup | [topics/installer.md](topics/installer.md) |
 | jobs, cron, queue, scheduling, background work, z77-run CLI, throttling, long-running tasks | [topics/jobs.md](topics/jobs.md) |
-| JavaScript build, minify / minifizieren, `.min.js`, terser, `npm run build:js` / `check:js`, vendor marker `@z77-js` | [topics/js-build.md](topics/js-build.md) |
+| JavaScript build, minify / minifizieren, `.min.js`, VS Code minify on save, `tests/js-min-markers.php`, terser / `npm run build:js` (optional), vendor marker `@z77-js` | [topics/js-build.md](topics/js-build.md) |
 | login, auth, session, AccessGuard | [topics/login.md](topics/login.md) |
 | lottie, animation, `<lottie-figure>`, poster | [topics/lottie.md](topics/lottie.md) |
 | mail, email, e-mail versand / configure email sending, SMTP, contact form / kontaktformular, form mail, emailConfig, sender / from address, EmailService, backend mail settings | [topics/mail.md](topics/mail.md) |

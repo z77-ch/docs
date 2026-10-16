@@ -1,6 +1,6 @@
 # backend
 
-2026-10-10
+2026-10-13
 
 ## entry
 
@@ -85,6 +85,7 @@ Backend groups exist for UI organisation only — they are NOT business-domain b
 | `service` | `backup` | Installation service tools (topbar section «Service»): backups (SUPER_USER, see [`backup.md`](backup.md)) + form-mail settings (ADMIN, see [`mail.md`](mail.md)) |
 | `finance` | `tax-code` | Business master data and bookkeeping of the order/debtor/financial plan (ADR-040): tax codes (fragment of `module-vat`, see [`vat.md`](vat.md)), chart of accounts, fiscal years, the journal and the ledger reports (`account`, `fiscal-year`, `journal`, `report` — fragments of `module-financial`, see [`financial.md`](financial.md); the journal's add/edit are PAGE form posts guarded by `#[Csrf]`, not modals; `report` has no list — its `defaultAction` is `trial-balance`, a deviation entry in `backendConfig` → `controllers` → `finance`); the debtor master data and the debtor screen (`payment-terms`, `payment-target`, `dunning-level`, `debtor` — fragments of `module-debtor`, see [`debtor.md`](debtor.md)); the mandator (`mandator` — fragment of `module-mandator`, see [`mandator.md`](mandator.md); ONE record, so its `defaultAction` is `edit`, a deviation entry like `report`'s, and its form is a page post guarded by `#[Csrf]`); invoices later. Resolves only in projects that install the owning module |
 | `contact` | `contact` | Contacts with typed addresses and the address types (fragments of `module-contact`, see [`contact.md`](contact.md)). Proposed group, not owner-confirmed yet |
+| `order` | `article` | Order processing (P7 slim, `p7-order-plan.md` §3): the article master (`article` — fragment of `module-article`, see [`article.md`](article.md)); the order statuses (`order-status` — fragment of `module-order`, see [`order.md`](order.md), built 2026-10-14); module-order's `order` (the list, step 7) joins the group and its default becomes `order` then. Resolves only in projects that install the owning module |
 
 ## controllers
 
@@ -372,6 +373,7 @@ design. Owned by [`security.md`](security.md) — see it for the gating rules.
 
 ## known issues
 
+- **BE-INLINE-001** (2026-10-13, review §2, Rule 7): the two inline handlers of the backend are gone — the stats page's link field (`Service/StatsController/listAction.tpl.php`, was `onclick="this.select()"`) carries `data-select-on-focus`, «Bericht drucken» in `_report.tpl.php` (was `onclick="window.print()"`) is `<button data-print hidden>`, both served by core.js `_Z77.core.triggers` (fetch.md). The client's link page (`/stats/report/{token}`) loads no script, so there the button stays hidden and the browser's own print menu prints. A dialog or ⋮ hub URL opened as a page now answers 303 to its list instead of 500 — for every backend screen, by the kernel (fetch.md MODAL-PAGE-001).
 - **BE-USER-UI-001** (2026-10-10, ADR-049 revision / ADR-047 addendum, forms-actions review rows 31, 32, 36): the user dialogs carry their actions in the shared row `partials/modalActions` — the edit form under the header with the «n Fehler» link (ids `bu-*`), the delete confirm (no input field) at the bottom (`end`), the not-found / blocked messages and the ⋮ hub their «Schliessen» under the header. Save answers in place with the list's own row partial (`_row.tpl.php`): `replaceRow('backend-user', id)` for an edit, `insertRow` into `[data-entity-list="backend-user"]` (appended — a new user gets the last sortKey) for a create; delete answers `removeRow`; in-place flash. core.js wires the ⋮ (FETCH-ROW-001); the drag & drop of `backend-user/list.js` listens on the list body and reads `data-user-id`, so a row brought in later takes part (the row carries `draggable="true"` itself).
 - ARCH-P002 — resolved. `UserPreferences` moved to `Z77\Shared\ValueObjects\`.
 - BUG-P001 — resolved. `Naming::toCamelCase` fixed; `BackendUser` save round-trip works again.

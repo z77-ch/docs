@@ -444,7 +444,7 @@ Guiding rule: **build it right once, nothing twice, nothing in stock.**
 | — | Money | Integer minor units (Rappen) everywhere in PHP. Never `float`. |
 | — | VAT scope | European model from day one; only country pack `CH` is built. |
 | — | One write path (2026-09-20) | **Every stock quantity has exactly one service allowed to change it, and every change is journalled.** For the ledger that service is `LedgerService::post()` (§5.4), for stock the service in `module-article` (§4b). Neither knows its callers; a trigger arrives as an opaque reference. A quantity that many places may write is a quantity nobody can explain. |
-| — | Correction principle (2026-09-20) | **Nothing that has been posted or consumed is corrected by deletion or by a special state — always by a counterpart of the same shape.** (Sharpened after the review: stated absolutely the rule was decorative, because it already had three carve-outs — manual entries until the close, `reinvoice` while in `invoicing`, and stock correction with a reason. Bounded to *posted or consumed*, it holds.) A reversal against a journal entry, a credit note against an invoice, an order with negative quantities against an order. This is why there is no cancelled order status (§7) and why generated entries are immutable (below): the counterpart records *what happened*, a deleted row or a `cancelled` flag records only that something did not. |
+| — | Correction principle (2026-09-20) | **Nothing that has been posted or consumed is corrected by deletion or by a special state — always by a counterpart of the same shape.** (Sharpened after the review: stated absolutely the rule was decorative, because it already had three carve-outs — manual entries until the close, `reinvoice` while in `invoicing`, and stock correction with a reason. Bounded to *posted or consumed*, it holds.) A reversal against a journal entry, a credit note against an invoice, an order with negative quantities against an order. This is why there is no cancelled order status (§7) and why generated entries are immutable (below): the counterpart records *what happened*, a deleted row or a `cancelled` flag records only that something did not. A document DRAFT (`invoicing`) is neither posted nor consumed — since 2026-10-10 it has no number either — so it is edited and, when not wanted, **deleted** (`InvoicingService::discard()`, owner 2026-10-13, ADR-040 addendum); a booked document is corrected by a credit note only. |
 
 ---
 
@@ -469,6 +469,11 @@ period-close check (§5.3) and the stocktake block (§4b): a module registers a 
 
 **These eight are the plan.** What order processing, bookkeeping, receivables and article management
 need, and nothing else.
+
+> **Changed 2026-10-14 (owner go on [`p7-order-plan.md`](p7-order-plan.md) §3 / §15 item 6):**
+> `module-article` requires `module-mandator` as well — the soft revenue-account check
+> (`LedgerAccountCheck::documentAccounts()`) and the shared `accountDatalist` partial live there.
+> No cycle: mandator → kernel, persistence-doctrine.
 
 Named but **outside this plan**, to be built later as their own modules on top of the seam in §7
 (§13): **subscriptions** (turnus, cycles, customer preferences — Q7), **shipping and delivery
@@ -638,6 +643,27 @@ because wdv has no text position type**. None of this is visible from the shop c
 | **A3** | **Two-stage article: product + variant.** Product = the marketing unit (one page, one URL, text, images, producer). Variant (SKU) = the stock, price and invoicing unit (own article number, own purchase and sales price, own stock). Vintage and size are variants. **Every product has at least one variant** — a default variant is created implicitly and the second stage stays hidden in the UI while it is the only one (review 2026-09-20). So article number, price, stock and every document reference always sit on the variant: "no second stage" is a UI fact, never a schema fact. Without this rule a line would have to reference product *or* variant, and that nullable dual reference is exactly the cost this decision is accused of. |
 | **A4** | **Price per variant with "valid from" and history**, net/gross declared per price. An offer price stays a regular feature (it is in use, but in wdv it is a client extension that core code nonetheless calls). The wdv future-price mechanism is dropped — it is effectively unused. |
 | **A-Pos** | **Position types belong in the model:** `service` / `lump sum` / `text` (and `subtotal` later), and the position text is editable from the start. Otherwise the text-only pseudo-articles come back. This requirement is invisible in the shop case and shows up only in the service case. |
+
+> **Changed 2026-10-14 (owner go, [`p7-order-plan.md`](p7-order-plan.md) §15 item 5, ADR-043 addendum
+> 2026-10-14):** tax code and revenue account sit on the ARTICLE, not on the product group; when the
+> tree comes (P6 full), it only supplies DEFAULTS for new articles. P6 SLIM (built 2026-10-14,
+> [`article.md`](../topics/article.md)): product + hidden default variant, price with «gültig ab»
+> history, number, name, unit, tax code, revenue account, «führt Bestand» — no tree, no options,
+> no images.
+
+> **A1 built 2026-10-14 (owner: «Der Baum reicht vorerst, ich muss ja irgendwie Waren gruppieren
+> können»; [`article.md`](../topics/article.md) → product-group tree):** ONE product-group tree
+> of free depth («Warengruppen», Stammdaten › Aufträge), exactly ONE placement per PRODUCT, by id
+> (a moved group takes its articles along). The group carries optional DEFAULT tax code and revenue
+> account for NEW articles, inherited per field from the nearest group above; existing articles
+> never change. Coordinator defaults, the owner may revise: the group is mandatory, an article may
+> hang on any node, the migration creates the root «Allgemein» and places the existing products
+> there. Not part of it, recorded as pending in `article.md`: discount group and turnover
+> statistics per group (the A1 row above names them — nothing reads them yet); **variants with
+> options** (vintage, size); **shop categories** — an article in SEVERAL categories of a shop
+> navigation (Magento-style, the owner found the idea interesting), a structure SEPARATE from the
+> one accounting group, built with the shop. The wdv import maps `group1..group4` to a path of
+> this tree (P5b / P8).
 
 What this plan builds from A1–A4: the **product group tree** (one placement, carrying revenue
 account, VAT default and turnover statistics), **product + variant**, **prices with history**, the
@@ -932,7 +958,7 @@ income statement result to retained earnings. Blocked while a period of the year
 | `OpenItem`, `Payment`, `Allocation` | Doctrine | transactional with postings |
 | `CamtImport`, `CamtTransaction` | Doctrine | dedup, state per transaction |
 | `DunningRun`, `DunningNotice` | Doctrine | history per invoice |
-| `NumberRange` (invoice, credit note) | Doctrine | atomic, gapless |
+| `NumberRange` — `document.YYMM` (one per month, ONE series for invoice / credit note / fee since 2026-10-10, drawn at the booking print), `customer`; the former `invoice` / `credit-note` stay until the contract step (`debtor.md` pending) | Doctrine | atomic, gapless |
 | `PaymentTerms` (due days, discount %, text per language) | file | few rows, master data |
 | `PaymentTarget` (IBAN / QR-IBAN, bank account number in the ledger) | file | few rows |
 | `DunningLevel` (days, fee, text) | file | few rows |
@@ -952,22 +978,35 @@ contracts/subscriptions, fees).
   P7: it prints on the document, and after P3 every issued invoice is immutable data — adding it later
   is a migration on issued documents.
 
-**Invoice states (decided 2026-09-18 — the wdv `if` state is kept, it is proven in practice):**
+**Invoice states (decided 2026-09-18 — the wdv `if` state is kept, it is proven in practice;
+revised by the owner 2026-10-10: «a printed invoice with a number IS a document» — the number is
+drawn at the BOOKING PRINT, not when the draft is created):**
 
-| State | Invoice | Ledger |
-|---|---|---|
-| `invoicing` (in Fakturierung) | Number + PDF exist. Can be re-invoiced as often as needed (clients notice errors after printing) — **the number stays the same**, snapshot and PDF are replaced | **nothing posted**, no open item |
-| `final` (Fakturierung abgeschlossen) | Immutable; correction only by credit note | posted, open item opened |
+| State / action | PDF | Number | Ledger | Editable |
+|---|---|---|---|---|
+| `invoicing` (in Fakturierung) | **preview** only — watermarked «VORSCHAU», no QR payment part, any number of times, no side effect | **none** | **nothing posted**, no open item | yes — edited («Bearbeiten …») as often as needed (clients notice errors in the preview), or deleted («Entwurf löschen …», owner 2026-10-13) |
+| «Buchungsdruck …» (only from `invoicing`; one draft or a selection) | the PDF with number and QR-bill, opened at once — a selection as ONE file, each document its own section (own pages, own page count, own payment part) | drawn now: `YYMMnnnn`, the month of the INVOICE date, one series for invoice / credit note / fee, in the order invoice date, then id | the one and only posting | – |
+| `final` («Verbucht») | the identical PDF, any time (reprint), no further posting | stays | posted, open item opened | no — correction only by credit note |
 
 - `invoice(draft)` (one transaction): VAT via `module-vat` → total rounded to 0.05 as **separate
-  rounding line** → number from `NumberRange` (only the first time) → `Invoice` in state
-  `invoicing` with full snapshot (addresses, lines, rates, tax summary, FX rate) → PDF with QR-bill
-  (reference QRR with a QR-IBAN, NON with a plain IBAN — owner 2026-09-23: no SCOR; bacon-qr-code is already vendored in the kernel).
-- `reinvoice(invoice, draft)`: only in state `invoicing`; same number, new snapshot and PDF.
-  Nothing to reverse — nothing was posted.
-- `finalize(invoices)` (batch, one transaction): state `final` → `OpenItem` → posting via
-  `AccountingGateway` (receivable / revenue per line + VAT per code + rounding). The PDF of this
-  moment is the binding document.
+  rounding line** → `Invoice` in state `invoicing` with full snapshot (addresses, lines, rates, tax
+  summary, FX rate, the payment target — the payment part as a working copy, see `finalize`) —
+  **without a number** (owner 2026-10-10); its PDF is the preview.
+- `reinvoice(invoice, draft)`: only in state `invoicing`; new snapshot and preview, still no number
+  (so the invoice date may move into another month). Nothing to reverse — nothing was posted. The
+  payment target must be active (owner 2026-10-13: no exception for a target the draft carries).
+- `discard(invoice, version)` (owner 2026-10-13, ADR-040 addendum): only in state `invoicing`; the
+  draft is DELETED with its lines — no number, nothing posted, nothing references it.
+- `finalize(invoices)` = the **booking print** (batch, one transaction): the month ranges locked
+  first, the rows; the payment part of each document taken AGAIN from its target and the mandator
+  as they read now and checked (`QrBill::problems()`) — a problem, an unknown or an inactive target
+  refuses the whole batch before a number is drawn (owner 2026-10-13); then the numbers drawn
+  (invoice date, then id) with the QR reference / message
+  derived from them (QRR with a QR-IBAN, NON with a plain IBAN — owner 2026-09-23: no SCOR;
+  bacon-qr-code is vendored in the kernel) → state `final` → posting via `AccountingGateway`
+  (receivable / revenue per line + VAT per code + rounding) → the screen answers with the PDF of
+  exactly these documents in a new tab. The PDF of this moment is the binding document; there is
+  no booking without the print. A repeated submit of the same selection reprints, posts nothing.
 - Why posting waits for `finalize`: re-invoicing never touches the books, so no reversal noise and
   no deleted entries (wdv deletes and re-posts). The price: an invoice sitting in `invoicing` is not
   in the books yet — covered by the close check (§5.3), which **blocks** VAT return and close.
@@ -1065,9 +1104,27 @@ is financial's; the adapter is the only debtor class that knows financial.
 - Quote and order confirmation as PDF from the order.
 - VAT on quote/order **for display only** via `module-vat`.
 - "Invoice": builds an `InvoiceDraft` from one or several orders (collective invoice), calls
-  `InvoicingService::invoice()`, records the invoice number per line. Payment state is **asked** from
-  debtor, never pushed back.
+  `InvoicingService::invoice()` (a draft — no number yet), records the invoice per line (by id; its
+  number exists from the booking print on). Payment state is **asked** from debtor, never pushed back.
+- **Order status ↔ invoice (agreed 2026-10-10, for P7):** `geliefert` (delivery-note print, or set
+  by hand) → `zu fakturieren` (set by staff) → `in Fakturierung` (the invoice draft is created; its
+  preview may be printed) → «Buchungsdruck» of the invoice → the invoice is «Verbucht» and the
+  order `erledigt`. The payment state is asked from debtor, it is not an order status (above). The
+  invoice PREVIEW may be printed from earlier order statuses too (a quote check, a pro-forma look) —
+  it has no number and no side effect.
 - order posts nothing.
+
+> **Superseded in part by the owner decisions of 2026-10-14 (build go the same day, ADR-040 and ADR-043
+> addenda 2026-10-14 approved) → [`p7-order-plan.md`](p7-order-plan.md):**
+> order and invoice are two records, but an order-based invoice has NO draft — it is issued and
+> booked from the order at the booking print in one unit of work (`invoiceAndFinalize()`), which
+> sets the order to «gebucht»; the seed becomes Offerte → Terminauftrag → geliefert → zu fakturieren
+> → gebucht → erledigt mit / ohne Lagerbuchung; one range `order` (a simple running number); the
+> invoice is linked per order, not per line; position changes trigger the stock seam as well as
+> status changes. The list of what this changes in §4b, §7 and ADR-040 / ADR-043 is that plan's §15.
+> So the table above reads: ONE `NumberRange` `order` (quote and order are one record — a quote is
+> an order in a status flagged `offer`), «Invoice» calls `invoiceAndFinalize()` (no draft), and the
+> invoice id is recorded on the ORDER (`sales_order.invoice_id`), not per line.
 
 ---
 
@@ -1096,6 +1153,10 @@ is financial's; the adapter is the only debtor class that knows financial.
 ---
 
 ## 9. Build phases
+
+> **Order changed by the owner (2026-10-13):** P7 comes **before P5**, in a slim form — quote and order with FREE lines (text, quantity incl. negative, unit, price, tax code, revenue account), status as data with the flow of 2026-10-10 (§7 note), the delivery note, the invoice draft from the order through the existing `InvoicingService`; NO articles (P6) and NO stock (P7b) yet, creation from outside (§13) later. Reason: the order closes the daily flow «Auftrag → Rechnung → Zahlung → Mahnung» that was live-tested on 2026-10-13. In the backend «Aufträge › Aufträge» becomes the first entry with «+ Neuer Auftrag» in the action cell. Then P5 / P5b, then P6, P7 with articles, P7b. The review of 2026-10-13 (`review-2026-10-13.md` §7) is the input for P5.
+
+> **Changed by the owner (2026-10-14; build go «Alles ok los» the same day — steps 1 and 2, article and the stock seam, built 2026-10-14):** P7 slim comes WITH articles — a P6 slim (number, name, unit, price, tax code, revenue account, «führt Bestand») — and the stock SEAM (flags on status and article, the one call on every status and position change; the movement journal stays P7b). No invoice draft for orders: the booking print runs from the order. Collective invoice and creation from outside later. Build plan, decisions, steps and open questions: [`p7-order-plan.md`](p7-order-plan.md).
 
 | Phase | Content | Exit |
 |---|---|---|

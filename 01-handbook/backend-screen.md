@@ -34,9 +34,9 @@ the topic docs are the binding text.
 |---|---|---|
 | **Aktionszelle** | the MOST FREQUENT action of the selected navigation entry — exactly one control, or empty | `{action}.act.tpl.php` (hc1); a fragment: `addPartials(…, 'hc1')` |
 | **Auswahl** (top of the rail) | a choice that holds for the WHOLE area (the fiscal year) | `{action}.select.tpl.php` / section `railSelect` |
-| **Werkzeugzeile** | first the tabs (language, mode, view), then tools in secondary form — no primary button | `{action}.toolbar.tpl.php` (hc2) |
+| **Werkzeugzeile** | first the tabs (language, mode, view), then tools in secondary form — no primary button; on a LIST with help «Hilfe» at its right end (HELP-003) | `{action}.toolbar.tpl.php` (hc2); «Hilfe» written by the shell |
 | **Krumenzeile** | the position only — fixed height, no buttons, no help icon | default crumb or `{action}.crumb.tpl.php` |
-| **Kopfleiste** | «? Hilfe» — only on pages that carry help | written by the shell |
+| **Kopfleiste** | «? Hilfe» — only on pages that carry help and are not a list (a list's stands in its toolbar) | written by the shell |
 | **Arbeitsfläche** | the content; buttons only when bound to a selection or inside a dialog | the action template |
 
 Names and classes: [css-backend.md → shell regions](../topics/css-backend.md#shell-regions-glossary);
@@ -51,7 +51,8 @@ often?* That is the action cell. The target table of the existing areas is in
 | The most frequent action … | Action cell |
 |---|---|
 | creates something | «+ Neu» — `be-btn be-btn--primary` with the plus icon: «+ Kontakt», «+ Rechnung» |
-| writes / confirms (the screen is a form or a capture) | `be-btn be-btn--confirm` (green, check icon), submitting through `form="…"`: «Buchen», «Speichern» |
+| saves a form | «Speichern» — `be-btn be-btn--primary` (accent), submitting through `form="…"` (ADR-033 addendum 2026-10-16) |
+| books / finalises (a capture that writes into the books) | `be-btn be-btn--confirm` (green, check icon), submitting through `form="…"`: «Buchen», «Verbuchen» |
 | has several kinds, one of them the everyday one | split picker `.be-shell-add--split` — the main part runs the default and its label NAMES it («↓ Daten sichern \| ▾», «+ Texteintrag \| ▾»), the menu lists the default first |
 | has several equal kinds | picker `.be-shell-add` «+ Eintrag ▾» |
 | does not exist (a report, a log, a settings list) | leave the cell EMPTY |
@@ -72,6 +73,7 @@ often?* That is the action cell. The target table of the existing areas is in
 | Tabs | `.be-viewtabs` — text with accent underline: language, mode, view | boxes or pills |
 | On/off | `be-switch` — the ONLY on/off form; a switch for a CSS reveal is a `<label for>` of the checkbox (`.be-switch--for`) | checkbox links, text toggles |
 | Area choice | the rail-top select (`railSelect`) — a floating tinted card | a dropdown in the toolbar |
+| List filter over a long tree | the tree picker in the toolbar (`Z77\Shared` `partials/treePicker`) — a field with the chosen path, search over all levels, one level at a time | the rail-top select (it is not an area choice) |
 | Sections of a long form | radio tabs (`.be-radiotabs` + `.be-viewtabs__tab--for` in the toolbar), one form, one save; the first tab with an error opens | separate pages per section |
 
 **An icon stands for a word only where there is no room for the word, or where the layout
@@ -87,6 +89,9 @@ Details and selectors: [css-backend.md → button / tab / switch vocabulary](../
 
 ## 4. The work area
 
+- **Blocks are cards on the window ground** (ADR-051): a form section, a list, a totals block
+  sits on its own `--be-surface2` card with a 1px line on `--be-bg`; inputs on `--be-field`;
+  inputs inside a table borderless until hover / focus. What belongs together sits on one card.
 - **Every table is a standard list** — `Z77\Shared\Listing`: columns declared once
   (`{X}Listing::definition()`), sort and magnifier search per column in the database, 50 per
   page, a fetch region. Write only the rows. → [listing.md](../topics/listing.md)
@@ -121,6 +126,11 @@ Details and selectors: [css-backend.md → button / tab / switch vocabulary](../
 
 - A screen with help attaches it through the HelpService (ADR-048); the shell then shows
   «? Hilfe» in the top bar. No help → no button.
+- **A list attaches its help with `toolbar: true`** (owner 2026-10-20, HELP-003): «Hilfe» then
+  closes the list's toolbar at its right end and the top bar shows none — one help button per
+  page. Attach it in the list action BEFORE `html()`, and only for the page (a fetch of the
+  list region carries none). A window keeps «Hilfe» in its title bar. The text is a short
+  `list.help.tpl.php`: what the list is for, the tabs, the main actions.
 - Write the help as a general part plus one section per field: `data-help-field="debit"` (the
   field's `name`, or its `data-help-key`). «? Hilfe» or **F1** jumps to the section of the field
   the user is in; without a section the general part shows. The help is in the page — no fetch.

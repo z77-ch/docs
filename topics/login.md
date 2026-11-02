@@ -1,6 +1,6 @@
 # login
 
-2026-11-01
+2026-11-02
 
 ## entry
 
@@ -26,6 +26,8 @@ SOURCE=/packages/module-backend/src/Ui/Config/layoutConfig.inc.php
 SOURCE=/packages/module-backend/src/Ui/Controllers/System/LoginController.php
 SOURCE=/packages/module-backend/res/view/templates/System/LoginController/loginAction.tpl.php
 SOURCE=/packages/module-backend/res/view/templates/System/LoginController/forgotAction.tpl.php
+SOURCE=/packages/module-backend/res/view/templates/System/LoginController/logoutAction.tpl.php
+SOURCE=/packages/kernel/shared/res/view/templates/partials/csrfField.tpl.php
 SOURCE=/packages/module-backend/res/view/templates/System/LoginController/resetAction.tpl.php
 SOURCE=/packages/module-backend/res/view/templates/emails/passwordReset.tpl.php
 SOURCE=/packages/module-backend/res/view/templates/emails/passwordChanged.tpl.php
@@ -171,10 +173,13 @@ LoginController::codeAction()
                    → completeLogin()             // flash, weak-password nag, resolvePostLoginRedirect()
 ```
 
-### GET `/backend/system/login/logout`
+### POST `/backend/system/login/logout` (SEC-GET-001)
 
 ```text
 LoginController::logoutAction()
+  → GET, or a POST whose token does not fit      // a stale tab, an old link, a bookmark
+       → the page «Abmelden» with a fresh token  // never a silent refusal; it signs nobody out itself
+  → POST with the session's token:
   → AuthService::logout()     // removes auth_user via SessionManager
   → MessageService::pushFlashAfterRedirect('info', 'Du wurdest abgemeldet')
   → redirect /login (alias)
@@ -402,6 +407,8 @@ guard never sends a customer to the admin login. Details: `member.md`
 - When setting the current user → MUST use guest identity (`id=0`, `isLoggedIn()=false`); MUST NOT store `null`
 - When access-controlling a module's controllers → MUST set `moduleRole` as the restrictive baseline and add a `controllers` entry ONLY for a deviation (looser: GUEST login/setup; stricter: SUPER_USER backup; or a non-`list` defaultAction); MUST NOT restate the baseline per controller/action — an unlisted controller/action inherits the fallback chain `actionRole → controllerRole → moduleRole` and is never open (AUTH-B003, see backend.md)
 - When configuring `loginUrl` in `backendConfig.inc.php` → MUST use the alias `/login`, NOT the canonical 4-segment URL — the alias is resistant to future URL restructuring
+- When offering a way out of the backend → MUST be a form that POSTs to `/backend/system/login/logout`, its token from `partials/csrfField` (`partials/shell/topbar`, the frontend's `partials/adminOverlay`); MUST NOT be a link: a GET only shows the confirm page. **A project's own logout link or template override should move to the form** (SEC-GET-001, [`security.md`](security.md)).
+- When a logout's token does not fit → MUST answer the confirm page with a fresh token; MUST NOT refuse silently (`#[Csrf]` would redirect to `/` with no word, and the person believes he has left) and MUST NOT sign out without the token.
 - When handling a login POST → MUST validate the session-global CSRF token (`CsrfService::validate()`) before checking credentials; on failure MUST re-render the form with a generic "Sitzung abgelaufen" message. `AccessGuard` does NOT cover the login form (it skips non-Fetch requests, and the login page itself runs without auth).
 - When building the reset link → MUST take the origin from `Request::getBaseUrl()` (`canonicalBaseUrl`); MUST NOT read the `Host` header: a forged Host would put the attacker's domain into a genuine mail and hand him the token (SEC-005).
 - When storing a reset token → MUST store only its SHA-256 (`PasswordResetTokens`); the plaintext exists in the mail only and MUST NOT reach a log.
@@ -428,6 +435,7 @@ guard never sends a customer to the admin login. Details: `member.md`
 
 - [`persistence-file.md`](persistence-file.md) — `BackendUserRepository`; `passwordHash` round-trip fixed (BUG-P001 resolved)
 - [`fetch.md`](fetch.md) — CSRF validation in `AccessGuard` (Fetch POSTs only; the login form is a classic POST and validates the token in the controller itself)
+- [`security.md`](security.md) SEC-GET-001 — why the logout is a POST, and which GETs still change something
 - [`messages.md`](messages.md) — `LoginController::logoutAction` and `handlePost()` call `messageService->pushFlashAfterRedirect()` before returning the `RedirectResponse` for post-login greeting and logout confirmation
 - [`security.md`](security.md) — `PasswordPolicy`, `passwordWeak` nag, secure-by-default install + setup token, open security pendenzen (SEC-001…004)
 - [`member.md`](member.md) — the SECOND identity: passwordless customer accounts with their own session and their own guard. It never writes `auth_user`, so `AccessGuard` sees a signed-in customer as a guest; the separation is ADR-029
@@ -445,7 +453,7 @@ guard never sends a customer to the admin login. Details: `member.md`
   - **A stolen session keeps working until one of those happens.** Switching on ends it; if the thief also has the password, he can sign in again up to the code page, not past it.
   - **A reset link consumed, then the save fails** (disk full between `consume()` and `flush()`): the link is gone and the password unchanged; the answer is an error page and the owner asks for a new link. Nothing is exposed, so it stays.
   - **The key file is in `data/`**, so the `data` and `full` backups hold it beside the ciphertext: the encryption protects against a leaked user store, not a leaked backup. Lost key: every 2FA user is reset, by the procedure above if that includes the last SUPER_USER.
-  - **Fails closed means a disk problem takes 2FA users out of the backend** until it is fixed, by decision («code refused» above). `TotpGuard` itself decides nothing: the member door still carries on when `recordFailure()` answers false.
+  - **Fails closed means a disk problem takes 2FA users out of the backend** until it is fixed, by decision («code refused» above). `TotpGuard` itself decides nothing; the member door fails closed too since 2026-11-02 (`member.md` MEMBER-2FA-001).
   - **The installed CSS:** `.be-form__qr` reaches an existing installation like any asset (`public/` is seed-once, backend.md); until then the QR renders at its own size.
 - **LOGIN-TOGGLE-001** — resolved 2026-11-01. The show-password eye had NOT worked on `/login` and on the reset form: `LoginController` called `addJs` before `html()`, so `password-toggle` (and `password-meter`) stood in front of core.js and died with `_Z77 is not defined`; no eye, no meter, the login itself unharmed. Older than the 2FA work (`addJs` before `html()` is in the previous commit too; `SetupController`, which calls it after, always worked). Fixed by the order, the scripts are unchanged, so `.min.js` too. Verified: `tests/backend-2fa.php` (script order in the HTML) and in headless Edge against the `.min.js`: no console error, the toggle in the DOM on login (1), reset (2), setup (1).
 - **LOGIN-RESET-001** — built 2026-11-01 (owner: an installation needs it the next day). «Passwort vergessen» for backend users: flows above; `BackendUser.email`, `auth_epoch`; store `data/framework/auth/passwordResets.json` (module-backend, plain rows through `FileStorage`; the file appears with the first request and a missing file reads empty, so there is no installer step). Job `password-reset-cleanup`, no schedule. Verified: `tests/backend-password-reset.php` (198 checks: offline sections plus the whole flow through the framework in PHP's built-in server, with a forged Host and the `file` mail transport; 6 concurrent processes consume one token, one wins). **Verified by the owner 2026-11-01 on a real installation: the flow runs («es läuft»). Not separately confirmed: the login lock on the host.** Don't assume these residual risks are closed:

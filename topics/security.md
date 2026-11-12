@@ -1,6 +1,6 @@
 # security
 
-2026-11-02
+2026-11-12
 
 ## entry
 
@@ -17,6 +17,8 @@ SOURCE=/packages/kernel/shared/src/Auth/LoginThrottle.php
 SOURCE=/packages/kernel/shared/src/Auth/Totp.php
 SOURCE=/packages/kernel/shared/src/Auth/TotpGuard.php
 SOURCE=/packages/kernel/shared/src/Auth/TotpVault.php
+SOURCE=/packages/kernel/shared/src/Auth/LoginCodeStore.php
+SOURCE=/tests/login-code-store.php
 SOURCE=/packages/module-member/src/Services/TotpCodeCheck.php
 SOURCE=/packages/module-backend/src/TwoFactor/BackendTwoFactor.php
 SOURCE=/packages/kernel/shared/src/Throttle/FileThrottle.php
@@ -42,7 +44,9 @@ SOURCE=/packages/kernel/core/src/Exception/ExceptionHandler.php
 SOURCE=/packages/kernel/core/src/Http/Response/DeliveryPolicy.php
 SOURCE=/packages/kernel/core/src/Http/Response/SecurityHeaders.php
 SOURCE=/packages/kernel/core/src/Http/Response/HtmlResponse.php
+SOURCE=/packages/module-api/src/Ui/Controllers/App/AppController.php
 SOURCE=/tests/security-headers.php
+SOURCE=/tests/app-shell.php
 SOURCE=/tests/file-delivery-policy.php
 SOURCE=/tests/file-delivery-browser.php
 SOURCE=/tests/state-changing-get.php
@@ -61,6 +65,18 @@ z77 is open source — anything shipped is public, including the default admin h
 - The configured tier is resolved once per controller via `BackendAbstractController::passwordTier()` (reads `config/auth`); the installer resolves it from its merged `authConfig`. Both funnel through `PasswordTier::fromName()`: an ABSENT value → the safe `strong` default, an unknown NON-EMPTY value (typo) → **fatal `\ValueError`** — fail-loud / fail-secure, never a silent downgrade of a security setting. The default in `auth.default.inc.php` is bound to the enum (`PasswordTier::Strong->value`), so a typo in the default itself is a fatal at load time too.
 - The live meter (`password-meter.js`) mirrors the policy as a hint; the tier's min length is passed to it via the `data-z77-password-min` attribute. The server policy is the authority on save.
 - bcrypt cost 12 for hashing.
+- **The phone's sign-in (ADR-058)** is a third door beside the backend and the member login: an
+  app user receives a 6-digit code by mail and types it in the z77 App, no password. ONE factor
+  (the mailbox) — hence capture-only scopes (P4). Its credentials are two cookies on `Path=/api`,
+  both HttpOnly + SameSite=Strict (+ Secure on HTTPS): the request nonce `z77_api_login` (15 min)
+  and the device cookie `z77_api_device` (400 days, only `sha256(secret)` stored). Anti-oracle as
+  the member login: the same 202 and a record for every address; one generic refusal for every
+  code; a mail failure is never answered. Tries are counted under a file lock
+  (`LoginCodeStore`, kernel), not by `FileThrottle`. An anonymous door must not mint a file
+  per caller-chosen value nor carry a caller-chosen text into an operator mail: the per-address
+  counters, the cap marker and the operator alert exist only for an app user's address, and
+  every mail goes out after the response (security review M1). Details and the accepted residual risks:
+  [`api.md`](api.md) «app users», ADR-058.
 
 ## install / setup model (agreed 2026-06-02)
 
@@ -157,7 +173,9 @@ still the right tool for a non-form endpoint that needs the same protections.
 - When gating setup (`SetupController`, `/backend/system/setup/setup`) → MUST refuse once any user exists (locked) AND require a matching on-disk token (`hash_equals`); MUST delete the token after the admin is created (single-use). MUST NOT expose setup via a friendly `/setup` alias in `navigation.json` (a one-shot bootstrap route stays out of user-editable runtime navigation).
 - When a file reaches a browser → MUST go through `FileResponse` / `BytesResponse` / `ByteSourceResponse`: `DeliveryPolicy` is an allowlist on the type, sets nosniff and the sandbox, and no caller can opt out. A new response class that sends file bytes MUST apply it too. A file under `public/` is served by the web server by extension, past this policy: anything user-supplied there MUST be on a safe extension list with a guard. Hand-placed developer files beside the DMS partitions are the developer's and stay untouched; a file placed in a DMS partition by hand gets no type rule (DMS-ACTIVE-001, [`documents.md`](documents.md)).
 - When something answers with an HTML document → MUST go through `HtmlResponse` or call `SecurityHeaders::send()` after its `Content-Type`, as the error pages do; a stricter value an action sets first stays (`no-referrer` on the reset page).
+- When a page area of the framework itself is built to run under an ENFORCED CSP (today: the app shell `/app`, `AppController::CSP`, ADR-057 addendum) → MUST set that one `Content-Security-Policy` in the action BEFORE the answer (`SecurityHeaders::send()` keeps it and sends no second one), MUST keep its templates free of inline script, `style=` and `on…=` and MUST prove it with a real-stack harness (`tests/app-shell.php`); MUST NOT weaken `SecurityHeaders::DEFAULTS` for it.
 - When a project needs another security header value, or none, or one more → MUST write only the deviation into `config/client/securityHeaders.inc.php` (header name => value, null switches off); MUST NOT send it from a template or a controller: a second `Content-Security-Policy` is added to the first by the browser, it does not replace it. A `Header always set` in `public/.htaccess` wins over that file (SEC-HEAD-001).
+- When a credential is judged by a short code (the app sign-in, later a member code) → MUST use `LoginCodeStore` (one record per request with a nonce cookie, count-compare-spend under `flock`); MUST NOT key a record by the account or let a new request replace an old one (anyone could lock a known address out), MUST NOT count tries with `FileThrottle` (ADR-058).
 - When rendering an error page with `DEBUG` off → MUST show a generic page without file paths or stack traces (see SEC-002).
 
 ## see also
@@ -167,6 +185,7 @@ still the right tool for a non-form endpoint that needs the same protections.
 - [`installer.md`](installer.md) — install flow, data-file seeding, debug flag
 - [`messages.md`](messages.md) — `pushMessageAfterRedirect` persistent channel used by the nag
 - [`forms.md`](forms.md) — `PublicFormHandler`: the standard cascade that applies `FormGuard` + the in-action CSRF check for every public form
+- [`api.md`](api.md) — the app users' e-mail-code sign-in (ADR-058): device and nonce cookies, the anonymous door, `LoginCodeStore`
 - [`member.md`](member.md) — the customer login: the TOTP door the backend's shares its kernel classes with, the magic link this topic's roadmap can reuse, and where SEC-005 bites hardest (MEM-006)
 
 ## known issues
@@ -194,39 +213,9 @@ still the right tool for a non-form endpoint that needs the same protections.
 
 ## pending
 
-- **Error handler** (fixes SEC-002) — branch on the framework `DEBUG` flag; generic production page without paths/traces.
-- **Reject a mismatching `Host`** (optional hardening on top of SEC-005, deliberately not built) — answer 400/421 when the request's `Host` differs from `canonicalBaseUrl`. Defense-in-depth against further Host tricks, but it breaks apex-vs-www and staging setups, so it needs its own opt-in switch and a migration story. Not urgent: with the origin configured, a forged `Host` no longer reaches any generated URL.
-- **Backend editor for `systemConfig`** — SUPER_USER-gated, so `canonicalBaseUrl` can be corrected without a deploy (ADR-030 leaves the file hand-maintained for now). Must clear APCu + page cache on write, like the existing debug/noindex toggles.
-- **Enforcing the page CSP** — it only observes (SEC-HEAD-001). Needs a decision about the Google Fonts in `partials/head/fonts`, a look at a real installation's console, and a project's own templates read first.
-- **Docroot/deny hardening, nginx part** — the Apache side is done (INST-DENY-001, 2026-09-02: the installer seeds `Require all denied` `.htaccess` files into `data/`, `config/`, `logs/`; see [`installer.md`](installer.md)). Equivalent nginx `location` deny snippets are still only documentation-by-hand; on nginx the correct docroot remains the only defence.
-- **Roadmap (stronger auth)** — second factor is a **per-user** property on the `BackendUser` entity (decided 2026-06-03), set by the admin in the user-edit form or by the user themselves (self-service later) — NOT installation/module config (a global config cannot hold per-account TOTP secrets). New field `secondFactor` (`none` / `totp` / `magic`) + a `SecondFactor` enum in `shared/src/Auth/` (domain value of `BackendUser`, alongside `PasswordTier`); TOTP enrolment adds a stored secret field. The login flow (`AuthService` / `LoginController`) branches on it. Separate, optional, later: a *mandate* policy (e.g. \"admins must enable 2FA\") — global/role-level, distinct from the per-user enablement field. Also: Passkeys/WebAuthn (passwordless, phishing-resistant); email on the account (set at setup) for password reset + 2FA delivery — email belongs on the account, NOT in `composer.json` as an install gate. See [`login.md`](login.md) (BackendUser entity) + [`backend.md`](backend.md) (user-edit form).
-  **Status note 2026-08-07:** none of this is done for `BackendUser`. What exists is a working
-  TOTP implementation in `module-member` (RFC 6238 with the RFC vectors, AES-256-GCM secret
-  vault, 5-failure / 15-minute lockout, QR enrolment) plus a passwordless magic-link login —
-  but for CUSTOMER accounts on a separate identity, not for `BackendUser`
-  (see [`member.md`](member.md), [`../02-decisions/adr-029-member-session-and-framework-acl.md`](../02-decisions/adr-029-member-session-and-framework-acl.md)).
-  Those services are reusable for the admin login when this roadmap item is taken up; the
-  `secondFactor` field, the enum and the `AuthService` branch are still missing.
-  **Owner decisions 2026-09-22 (raised by the z77.ch P2 exit check — the developer was locked out
-  of his own backend, and there is no recovery path):**
-  - **Self-service recovery is required.** A customer who cannot get into the backend must not
-    have to ask the developer.
-  - **Both ways, selectable per user.** Either a password with a «Passwort vergessen» link (a
-    one-time, short-lived link to the account's e-mail sets a new password), or passwordless
-    sign-in by magic link. Both reuse the `module-member` link mechanism.
-  - **2FA (TOTP) must be possible** on top of either way. The recovery link does not bypass the
-    second factor.
-  - **Timing:** after P3 (module-debtor) of the order/debtor/financial Bauplan. Until then, a
-    lost admin password is reset by hand on the server.
-  **Status 2026-11-01:** the password way is built («Passwort vergessen», one-time link valid 30
-  minutes; [`login.md`](login.md) LOGIN-RESET-001), with the recovery address on the account
-  (`BackendUser.email`), but it is not yet asked for at setup and every existing account starts
-  without one.
-  **Status 2026-11-01, later:** 2FA (TOTP) is built, optional per user and switched on by the user
-  himself ([`login.md`](login.md) BACKEND-2FA-001); the recovery link does not bypass it; a lost
-  device is an admin reset. It is not the shape sketched above: three fields on `BackendUser`
-  (`totp_secret`, `totp_activated_at`, `totp_last_step`), no `secondFactor` field and no enum, and
-  the admin cannot set it in the user form, only reset it. The owner's flow of that day decided
-  against recovery codes and against a magic link as a second factor. Still open: passwordless
-  sign-in by magic link, «selectable per user», a mandate, Passkeys/WebAuthn. The member's TOTP
-  has what the backend's got since 2026-11-02 ([`member.md`](member.md) MEMBER-2FA-001).
+- **Error handler** (fixes SEC-002) — branch on the framework `DEBUG` flag; generic production page without paths/traces, also in the boot phase before `Bootstrap` sets `display_errors`.
+- **Reject a mismatching `Host`** (optional hardening on top of SEC-005, deliberately not built) — 400/421 when `Host` differs from `canonicalBaseUrl`. Breaks apex-vs-www and staging setups, so it needs its own opt-in switch and a migration story. Not urgent.
+- **Backend editor for `systemConfig`** — SUPER_USER-gated, so `canonicalBaseUrl` can be corrected without a deploy (ADR-030 leaves the file hand-maintained for now). Must clear APCu + page cache on write, like the debug/noindex toggles.
+- **Enforcing the page CSP** — it only observes (SEC-HEAD-001); `/app` already runs under its own enforced CSP (`AppController::CSP`). Needs a decision about the Google Fonts in `partials/head/fonts`, a look at a real installation's console, and a project's own templates read first.
+- **Docroot/deny hardening, nginx part** — Apache is done (INST-DENY-001, [`installer.md`](installer.md)); equivalent nginx `location` deny snippets are only documentation-by-hand.
+- **Stronger backend auth, still open** (owner decisions 2026-09-22; built so far: «Passwort vergessen» LOGIN-RESET-001 and optional TOTP BACKEND-2FA-001, see [`login.md`](login.md)): passwordless sign-in by magic link, the way «selectable per user», a 2FA *mandate* (global/role-level, the only part that could ever be a config key), Passkeys/WebAuthn, and asking the recovery e-mail at setup. The `module-member` link and TOTP services are reusable ([`member.md`](member.md), [ADR-029](../02-decisions/adr-029-member-session-and-framework-acl.md)).

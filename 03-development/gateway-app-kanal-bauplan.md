@@ -1,7 +1,8 @@
 # Bauplan — Offenes Gateway für Geräte (App-Kanal) + erstes Ziel: mobiler Buchungsbeleg
 
-**Status:** `[KONZEPT]` — Entwurf, noch nicht freigegeben
-**Date:** 2026-09-29
+**Status:** `[KONZEPT]` — Entwurf, noch nicht freigegeben; Teil B durch die Owner-Entscheide
+2026-11-12 geändert (siehe «Owner-Entscheide 2026-11-12» am Ende)
+**Date:** 2026-09-29 · Nachtrag 2026-11-12
 
 Zwei Teile:
 
@@ -17,8 +18,9 @@ Owner-Vorgaben 2026-09-29:
 2. **Das bestehende Gateway erweitern**, kein zweites bauen (`module-api`).
 3. **Kein Store.** Client ist eine PWA auf iPhone und Android.
 4. **Anmeldung einmalig** (Geräte-Kopplung), danach ohne Login; pro Gerät revozierbar.
-5. **Keine Freigabe** beim Beleg — sofort gebucht; im Backend nur ein Hinweis
-   («Handy», «neu»).
+5. ~~**Keine Freigabe** beim Beleg — sofort gebucht; im Backend nur ein Hinweis
+   («Handy», «neu»).~~ **Ersetzt 2026-11-12:** der Beleg geht in ein **Belegjournal**
+   und wird gesammelt verbucht — der Ablauf der Fakturierung (ADR-054), siehe E1.
 6. **Routing statt Subdomain** — alles auf der Domain der Installation.
 7. **Regel 7 neu:** JS dort, wo es Sinn macht; Logik, Prüfung und Berechtigung auf dem
    Server; JS nie eine Angriffsfläche ([`conventions.md` → JavaScript](../01-handbook/conventions.md)).
@@ -182,6 +184,146 @@ Antwort auf POST: Journalnummer oder die deutschen Feldfehler des `OneLineEntryF
    bei Handeingabe.
 7. **Envelope-Doku:** Abschnitt «Base» sagt «no cookie» — für den Geräte-Kanal additiv
    ergänzen.
+
+## Owner-Entscheide 2026-11-12
+
+Diskussion des Bauplans mit dem Owner; ersetzen, was oben in Teil B anders steht.
+
+- **E0 — Das Gateway bleibt das Fundament.** Kein Zwischenweg über eine mobile
+  Backend-Seite mit Session: der Beleg ist das erste Ziel des Geräte-Kanals (Teil A).
+- **E1 — Belegjournal statt sofort buchen** (ersetzt Owner-Vorgabe 5). Gleicher Ablauf wie
+  die Fakturierung ([ADR-054](../02-decisions/adr-054-faktura-journal.md)): das Handy
+  erfasst in ein Belegjournal; Ende Monat überschauen, korrigieren und in einem Zug
+  «Journal verbuchen». Keine Freigabe pro Beleg. Verbucht wird nur ein vollständiger Beleg
+  (Konten und MWST gesetzt). Folge: `POST /api/v1/receipts` antwortet mit der
+  Journal-Position, nicht mit einer Buchungsnummer; das Hauptbuch sieht nichts bis zum
+  Verbuchen.
+- **E2 — Was das Handy erfasst: Vorlagen, leerer Rückfall.** Kacheln («Tanken»,
+  «Büromaterial», «Spesen Essen» …), jede Vorlage kennt Soll, Haben und MWST-Code — ein
+  Tipp, im Journal vorbefüllt. Passt keine: nur Foto, Betrag, Text; Konten und MWST
+  ergänzt der Owner im Journal. Keine freie Soll/Haben-Wahl auf dem Handy.
+- **E3 — Belegvorlagen sind Stammdaten im Backend**, keine Config-Datei (Muster
+  Auftragsstatus / Zahlungskonditionen): Name, Symbol, Soll, Haben, MWST-Code,
+  Reihenfolge, aktiv. Pro Installation; jedes gekoppelte Gerät sieht alle aktiven.
+  Eine benutzte Vorlage wird deaktiviert, nicht gelöscht. Kacheln pro Gerät / Person:
+  später, über die Scopes des Gateways.
+- **E4 — DMS-Ablage:** ein Ordner pro Geschäftsjahr, darin pro Monat (`Belege/2026/11`)
+  — beantwortet offenen Entscheid 4.
+- **E5 — Betrag ist Pflicht**, auch ohne Vorlage — beantwortet offenen Entscheid 5.
+- **E6 — Datum** vorbelegt mit heute, änderbar (nachgetragener Beleg).
+- **E7 — Offline erfassen:** ja, Warteschlange auf dem Gerät wie in A6 (kein Geheimnis,
+  Eintrag nach Bestätigung gelöscht).
+- **E8 — Wer hat erfasst:** jedes Gerät gehört einem Backend-Benutzer, der es im Backend
+  koppelt; das Journal zeigt «Handy <Benutzer> · <Gerätename>».
+- **E9 — KI/OCR** (Betrag, Datum aus dem Foto): später, immer nur Vorschlag — bestätigt
+  offenen Entscheid 6.
+- **E10 — «Bezahlt mit» statt festem Haben** (ändert E2/E3): eine Belegvorlage kennt nur
+  Soll und MWST-Code. Beim Erfassen wählt das Handy zusätzlich die **Zahlungsart**
+  (Kasse, Firmenkarte, privat ausgelegt …) — eigene kleine Stammdaten mit je einem
+  Haben-Konto, Muster wie die Vorlagen. Vollständig = Soll, Haben und MWST gesetzt.
+- **E11 — Verbuchen mit Stichtag:** «Journal verbuchen» nimmt einen Stichtag (vorbelegt:
+  letzter Tag des Vormonats); nur Belege bis dahin. Ein unvollständiger Beleg bis zum
+  Stichtag blockiert den ganzen Lauf (wie das Faktura-Journal).
+- **E12 — Ein MWST-Code pro Beleg.** Ein seltener gemischter Beleg wird im Journal
+  **aufgeteilt**: zwei Belege, dasselbe Foto, Beträge zusammen = Original.
+- **E13 — Gerät sperren ist endgültig.** Wiederverwenden = neu koppeln; kein «aktiv»-Schalter.
+- **E14 — Wer koppelt (bestätigt 2026-11-12):** jeder Backend-Benutzer ab EDITOR koppelt,
+  benennt und sperrt seine eigenen Geräte; ADMIN und höher sieht und verwaltet alle (nie für
+  einen Besitzer mit höheren Rollen) — wie gebaut (`api.md` «backend screen «Geräte»»).
+  **Ersetzt durch [ADR-058](../02-decisions/adr-058-app-users-email-code-login.md) A9
+  (2026-11-12):** es wird nicht mehr gekoppelt; nur ein ADMIN legt App-Benutzer an und verwaltet
+  sie (nie für eine Person mit höheren Rollen).
+- **E15 — Koppel-Code 10 Zeichen** (`ABCDE-FGHJK`, ADR-057) statt der 6 des Boards —
+  bestätigt 2026-11-12; der QR-Code ist der Normalfall. **Hinfällig durch
+  [ADR-058](../02-decisions/adr-058-app-users-email-code-login.md) A7 (2026-11-12):** Koppeln samt
+  Code und QR ist entfernt; die Anmeldung läuft über einen 6-stelligen Code per E-Mail.
+- **E16 — «Journal verbuchen» als Fenster, Stichtag vorgeschlagen = heute** (Owner 2026-11-12,
+  nach dem ersten Test: «Ende Vormonat» liess das Fenster leer wirken; ändert den Vorschlag
+  von E11, die Regel «nur bis zum Stichtag, ein unvollständiger blockiert» bleibt). Das
+  Fenster zeigt bei Fehlern bis zum Datum NUR die Fehler (welcher Beleg, was fehlt, Link
+  zum Beleg), sonst kurz was gebucht wird (Anzahl, Summe, MWST) und «Jetzt buchen»; das
+  Datum bleibt änderbar. Das Faktura-Journal bekommt dasselbe Fenster (ohne Datum) — ein
+  gemeinsamer Baustein (Regel 9; löst DEBTOR-WIN-002).
+  *Gebaut 2026-11-12:* `Z77\Shared` `partials/postConfirm` + core.js `form[data-window-form]`
+  (`fetch.md` WIN-GETFORM-001); `defaultCutOff()` = heute. Von DEBTOR-WIN-002 ist damit der
+  core.js-Teil gelöst; «Fakturieren …» als Fenster bleibt offen (`debtor.md`).
+- **Boards abgenommen 2026-11-12:** die vier Boards «Belege per Handy» auf dem
+  Developer-Canvas (Belegvorlagen, Belegjournal, Geräte, z77 App) — «passt soweit alles».
+  Mit E10 kommt «Bezahlt mit» dazu (Stammdaten-Liste wie Belegvorlagen; Auswahl auf dem
+  Erfassen-Bildschirm des Handys; im Belegjournal statt der festen Haben-Spalte).
+
+Noch offen (technisch): Entscheide 1–3 und 7 oben; Ort und Form des Belegjournals —
+Vorschläge im nächsten Abschnitt, vom Owner freigegeben 2026-11-12.
+
+## Technische Vorschläge 2026-11-12 (zur Freigabe)
+
+> **Approved by the owner 2026-11-12.** T1, T3, T5 and the security rules of A5 are binding
+> as [ADR-057 — The device channel of the API gateway](../02-decisions/adr-057-api-device-channel.md);
+> the gateway part (Umsetzungsschritte 2 and the model/pairing/guard of 3) is built, see
+> [`topics/api.md`](../topics/api.md).
+>
+> T2 and T4 (wave 1, part B) are built as `packages/module-receipt` — templates, payment methods,
+> the receipt journal, capture without a session, correction, split, «Journal verbuchen» up to a
+> cut-off (E1–E12), no screens and no API target yet; see [`topics/receipt.md`](../topics/receipt.md).
+>
+> Wave 2, part E (2026-11-12): the receipt targets `receipt-templates`, `payment-methods` (GET) and
+> `receipts` (POST) and the app shell `/app` (T6; generic shell in module-api, the receipt screen
+> contributed by module-receipt) are built — [ADR-057 addendum](../02-decisions/adr-057-api-device-channel.md),
+> [`topics/api.md`](../topics/api.md) «app shell». B4's `accounts` / `vat-codes` are replaced by
+> templates and payment methods (E2, E10). Open: the live test on iPhone and Android.
+
+Grundlage: Code-Stand `edce35b`. Korrektur zu A3 Zeile 7: das Framework setzt bereits eine
+CSP (`SecurityHeaders::DEFAULTS`: `frame-ancestors 'self'` erzwungen, `default-src 'self'`
+… als Report-Only, nur für HTML) — für die App-Seiten wird sie **erzwungen**, nicht neu
+erfunden.
+
+- **T1 — Gerät im Ziel (offener Entscheid 1) erledigt sich weitgehend durch E1.** Das Handy
+  bucht nicht mehr, es erfasst ins Belegjournal; `LedgerService` (Actor) läuft erst beim
+  «Journal verbuchen» im Backend, mit der Session des Owners. Das Ziel braucht nur noch den
+  Geräte-Principal als **Daten**: `ApiPrincipal` erhält optional `deviceId`, `ownerId`,
+  `ownerName`, `scopes` (additiv; der Maschinen-Kanal bleibt `tenantId`/`keyRef`), und
+  `ApiRequest` erhält `principal`, `method`, `body`, `files`, `idempotencyKey`. Kein
+  «run as user», kein AuthService auf dem stateless Pfad.
+- **T2 — Foto ablegen ohne Session:** `DocumentService::forModule('receipt')` →
+  `ModuleDrive::folder('Belege', '2026', '11')` → `saveGenerated()` (der vertrauenswürdige
+  Systempfad des DMS). Weil dieser Pfad nicht sniffst: das Ziel prüft selbst —
+  `UploadedFile::sniffMime()`, nur `image/jpeg`, `image/png`, `image/heic`?, `application/pdf`,
+  Grössenlimit. (HEIC: offen — iPhone liefert es; das Handy rechnet vor dem Upload auf JPEG
+  um, B3, dann entfällt HEIC.)
+- **T3 — Geräteverwaltung (offener Entscheid 2) in `module-api`.** Das Gateway besitzt die
+  Credentials; ein Gerät ist ein zweites Credential neben dem Bearer-Key. Muster von
+  `module-member` `DeviceKeys` (sha256, `hash_equals`, rollende Gültigkeit, Kappung,
+  UA-Label), aber nicht die Klasse (sie hängt an `MemberAccount`). Cookie
+  `z77_api_device`: HttpOnly, Secure, **SameSite=Strict, Pfad `/api`**. Speicher: Datei
+  `framework/api/devices.json` wie die Backend-Benutzer (Geräte pro Installation: wenige);
+  `last_used_at` höchstens einmal pro Stunde geschrieben. Guard: `ApiKeyGuard` wird eine
+  Kette — Bearer → Tenant-Resolver, sonst Geräte-Cookie → Geräte-Resolver, sonst 401.
+  Backend-Maske «Geräte» (koppeln per QR/Code, Scopes, sperren) unter System.
+- **T4 — Beleg-Ziel (offener Entscheid 3): eigenes Modul `module-receipt`.** Es braucht
+  financial (Konten, MWST, Buchen), dms (Foto) und api (Ziel); `module-financial` hängt
+  heute weder an dms noch an api und soll es nicht müssen. Inhalt: Entitäten
+  `ReceiptTemplate` (Belegvorlagen, E3) und `Receipt` (Belegjournal: Datum, Text, Betrag,
+  Vorlage?, Soll?, Haben?, MWST-Code?, `document_id`, `device_id`, erfasst von, Zustand
+  `captured` → `posted`, `journal_entry_id` nach dem Verbuchen); Ziel-Services
+  `receipt-templates` (GET), `receipts` (POST); Backend: Stammdaten «Belegvorlagen»,
+  Maske «Belegjournal» (Liste, bearbeiten, «Journal verbuchen» → je Beleg ein
+  `PostingRequest::generated(…, sourceType 'receipt', sourceRef <id>, Idempotenz-Schlüssel
+  'receipt:<id>')`, eine Unit of Work, alles oder nichts — das Muster von ADR-054, nicht
+  dessen Klassen, die sind rechnungsspezifisch). Die Verknüpfung Beleg ↔ Buchung liegt am
+  `Receipt` (`document_id` + `journal_entry_id`) — **`JournalEntry` bleibt unverändert**
+  (ersetzt B5).
+- **T5 — Envelope-Doku (offener Entscheid 7):** additiv ein Abschnitt «Geräte-Kanal»:
+  Cookie nur auf `/api`, Pflicht-Header `X-Z77-App: 1`, `Origin`-Prüfung, `Idempotency-Key`
+  bei POST; v1 bleibt gültig.
+- **T6 — App-Hülle:** HTML unter `/app` (Manifest mit `start_url`/`scope` `/app/`, Service
+  Worker nur für `/app/`, erzwungene CSP `default-src 'self'`), Kacheln aus
+  `receipt-templates`. Kopplung: QR im Backend → `/app/pair?code=…` → `POST
+  /api/v1/devices/pair` setzt das Cookie.
+
+**Aufwand (grob):** Gateway-Erweiterung (POST, Body, Dateien, Scopes, Idempotenz, CSRF)
+3–4 Tage · Geräte (Modell, Kopplung, Maske) 3 Tage · `module-receipt` (Vorlagen, Journal,
+Verbuchen, Ziele) 4–5 Tage · App-Hülle + Offline-Warteschlange 3 Tage · Doku, Tests,
+Live-Test iPhone/Android 2 Tage — **rund 3 Wochen**.
 
 ## Umsetzungsschritte (Vorschlag)
 

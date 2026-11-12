@@ -58,7 +58,7 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | You are working on / keywords | Read |
 |---|---|
 | alert, alarm, outage notification, operator mail/SMS, escalation, monitoring signal | [topics/alert.md](topics/alert.md) |
-| API, /api, module-api, bearer key, tenant key, stateless route, ApiKeyGuard, JSON endpoint, data broker | [topics/api.md](topics/api.md) |
+| API, /api, module-api, bearer key, tenant key, stateless route, ApiKeyGuard, JSON endpoint, data broker, device channel, device pairing (removed), app user, App-Benutzer, e-mail code, Anmeldecode, devices/login, devices/verify, LoginCodeStore, z77 App, /app/login, scope, minimum role, Idempotency-Key, Geräte (removed — devices in the app user's window), api-app-user, ApiAppUserControllerTrait, Funktionen-Schalter, Gerät sperren, apiDeviceScopes | [topics/api.md](topics/api.md) |
 | new backend area / screen, action cell, Aktionszelle, where does a button go, toolbar, tabs, switch, help button | [01-handbook/backend-screen.md](01-handbook/backend-screen.md) |
 | backend, dashboard, service panel, user preferences, system pages | [topics/backend.md](topics/backend.md) |
 | backup, restore, z77-backup CLI | [topics/backup.md](topics/backup.md) |
@@ -82,6 +82,7 @@ Structure is enforced by `npm run docs:check` ([docs-lint/STANDARD.md](../docs-l
 | import, data adoption, seed records into existing installation, wdv migration, ImportIdentity | [topics/import.md](topics/import.md) |
 | article / Artikel, product / variant, Produkt / Variante, article number / Artikelnummer, price history / Preisverlauf, «gültig ab», führt Bestand / stock relevant, `ArticleService`, `ArticleDraft`, `AbstractProduct`, `AbstractVariant`, stock seam / Lager-Schnittstelle, `StockLedger`, `StockRequest`, `StockLineTarget`, `PendingStockLedger`, `StockLedgers`, reservation / Reservierung, module-article | [topics/article.md](topics/article.md) |
 | order / Auftrag, quote / Offerte, sales order, `SalesOrder`, `SalesOrderLine`, order status / Auftragsstatus, `OrderStatus`, order phase / Phase, `OrderPhase`, phase default / Vorgabe, order confirmation / Auftragsbestätigung, status log / Verlauf, `OrderService`, `OrderDraft`, `OrderStatuses`, transition / Statuswechsel, `OrderInvoiceDraft`, `OrderStockTargets`, number range `order`, module-order | [topics/order.md](topics/order.md) |
+| receipt / Beleg / Buchungsbeleg, receipt journal / Belegjournal, receipt template / Belegvorlage, `Receipt`, `ReceiptTemplate`, capture / erfassen (Handy), `ReceiptCaptureService`, «Journal verbuchen» (Belege), `ReceiptJournalPostingService`, receipt photo / Belegfoto, `Belege/<Jahr>/<Monat>`, `capture_key`, module-receipt | [topics/receipt.md](topics/receipt.md) |
 | mandator / Mandant, own company / eigene Firma, letterhead / Briefkopf, UID / Unternehmens-Identifikationsnummer, `CHE-`, VAT liability / mehrwertsteuerpflichtig, default tax code / Standard-MWST-Code, account settings / Kontenzuordnung, `vatAccounts` (moved), `debtorAccounts` (moved), `CurrentMandator`, `MandatorAccounts`, `LedgerAccountCheck`, `vatAccountFor`, letterhead vs. payee / Zahlungsempfänger, multi-mandator / Mehrmandant, module-mandator | [topics/mandator.md](topics/mandator.md) |
 | list, table, backend list, column search, magnifier, sort link, pager, paging, ListDefinition, Column, Parsers, listHead, listFind, fetch region list | [topics/listing.md](topics/listing.md) |
 | money, amounts, Rappen, minor units, rounding 0.05, allocate, percentage | [topics/money.md](topics/money.md) |
@@ -121,6 +122,7 @@ New features from idea to implementation.
 | Document/Folder | Content |
 |---|---|
 | [roadmap.md](03-development/roadmap.md) | Milestones and priorities |
+| [pendenzen-2026-11-12.md](03-development/pendenzen-2026-11-12.md) | Prioritized open items of all topics (look / decide / build / limits) |
 | [triage.md](03-development/triage.md) | Process: when is what addressed |
 | [ideas/](03-development/ideas/) | Raw ideas — not yet evaluated |
 | [concepts/](03-development/concepts/) | Elaborated concepts — under discussion |

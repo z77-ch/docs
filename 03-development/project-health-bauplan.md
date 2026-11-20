@@ -71,15 +71,16 @@ it (screen text minimal, Rule 8); the rest appear as the earlier ones are done. 
 | 1 | 10 | `financial.chart` | financial | the chart of accounts is empty | «Kontenplan übernehmen» | Kontenplan | **A, built** |
 | 2 | 20 | `mandator.accounts` | mandator | no mandator saved / an account with a KMU start value (`MandatorAccounts::DEFAULTS`) empty or not postable | «Mandant erfassen» / «Mandant: Konten zuweisen» | Mandant | **A, built** |
 | 3 | 30 | `financial.fiscal-year` | financial | no fiscal year at all | «Geschäftsjahr eröffnen» | Geschäftsjahre | **A, built** |
-| 4 | 40 | `vat.accounts` | vat | an active shipped VAT code whose account is missing in the chart | e.g. «MWST-Codes: Konto fehlt im Kontenplan» | MWST-Codes (`finance/tax-code/list`) | **B, built** |
+| 4 | 40 | `vat.accounts` | vat | the mandator is liable to VAT (since 2026-11-20) and an active shipped VAT code's account is missing in the chart | e.g. «MWST-Codes: Konto fehlt im Kontenplan» | MWST-Codes (`finance/tax-code/list`) | **B, built** |
 | 5 | 50 | `debtor.payment-target` | debtor | no active payment target with an IBAN → no QR invoice | «Zahlungsziel mit IBAN erfassen» | Zahlungsziele (`finance/payment-target/list`) | **B, built** |
 | 6 | 60 | `article.first` | article | no active article → no order | «Artikel erfassen» | Artikel | **A, built** |
+| 6 | 61 | `article.tax-code` | article | the mandator IS liable to VAT and an active article has no tax code (allowed while not liable — owner 2026-11-20) | «Artikel ohne MWST-Code» | Artikel | **built 2026-11-20** |
 | 7 | 70 | `receipt.payment-method` | receipt (creditor reads it) | no active payment method («Zahlungsart») | «Zahlungsart erfassen» | Zahlungsarten (`finance/payment-method/list`) | **B, built** |
 | 8 | 80 | `financial.bank-ledger` | financial | an active bank account whose ledger account is not postable / active | «Bankkonto «…»: Konto im Kontenplan fehlt» | Bankkonten | **A, built** |
 | 8 | 81 | `financial.bank-mixed` | financial | an active mixed bank account, mandator `private` / `bank-transfer` empty or not postable | «Mandant: Konten Privat und Übertrag zuweisen» | Mandant | **A, built** |
 | 9 | 90 | `mail.sender` | backend (kernel mail) | no sender (`fromAddress`), or transport `file`, or mail `enabled = false` | e.g. «E-Mail-Absender erfassen» | E-Mail (`service/email-settings/list`) | **B, built** |
 | 10 | 100 | `creditor.ai-key` | creditor (kibot) | AI receipt recognition enabled but no key file | «KI-Schlüssel fehlt» | Kreditorenjournal (no AI settings screen; the switch lives there) | **B, built** |
-| 11 | 110 | `mandator.logo` | mandator | «Logo» or «Logo (E-Mail)» empty or the file not found (`LocalFiles::path()`) | «Firmenlogo für Belege / E-Mails hinterlegen» | Mandant | **A, built** |
+| 11 | 110 | `mandator.logo` | mandator | a use the installation shows (Belege, E-Mails, Anmeldung, Website — the website only with module-frontend, «eigenes Design» not counted) has no logo: no DMS document from the logo window and no old path whose file is found; NOT after «Später / kein Logo» | «Firmenlogo hinterlegen» / «Firmenlogo für … hinterlegen» (the missing uses) | the logo WINDOW (`mandator/logo`, opens as a window) | **A, built; rebuilt 2026-11-20** |
 | 12 | 120 | `financial.opening` | financial | the open year of today has a CLOSED predecessor and no opening | «Eröffnung {code} nicht erstellt» | Geschäftsjahre | **A, built** |
 
 Free slots between the tens are for later steps; equal slots keep registration order.
@@ -101,6 +102,24 @@ Free slots between the tens are for later steps; equal slots keep registration o
   screens (Bankkonten, Mandant).
 - **Step 6 is article's**, not order's: it owns the data and the target screen.
 - Every phase-A target is ADMIN: an editor sees no setup step.
+
+**Step 11 rebuilt (owner decisions 2026-11-20, the logo set-up window — [`mandator.md`](../topics/mandator.md) «The logo set-up window»):**
+
+- **Opens a window.** The line opens the logo window instead of the mandator page: `SetupCheck::opens()`
+  (new, default `DashboardEntry::OPEN_PAGE`) returns `OPEN_WINDOW`; the bridge passes it to
+  `DashboardEntry::pending(…, opens:)` and the dashboard writes `data-window-open` on the row and the
+  tile badge (ADR-047; without the script the href opens the same action as a page). `target()` is
+  `['backend', 'finance', 'mandator', 'logo']` — the tile «Mandant» is found by controller.
+- **Disappears by state**: as soon as every use the installation shows has a logo (DMS document or a
+  found old path).
+- **«Später / kein Logo» — the dismissal, decided here:** project health has NO dismissal yet (D4
+  «Nicht zutreffend» — SUPER_USER, a screen tab «Ausgeblendet», `ProjectCheckDismissal` — is decided but
+  not built). Building D4 for one step would have been the screen and the governance of phase P3. So the
+  choice is a **mandator flag**: `mandator.logo_step_dismissed` (TINYINT, same expand-only migration as
+  the document ids, `Version20261120150000`), set by the button «Später / kein Logo» in the window's
+  action row (ADMIN — the window's right, not SUPER_USER: it hides a convenience step, not a legal hint),
+  cleared by the next logo saved in the window (then a still missing use is announced again). When D4 is
+  built, this flag can stay (it belongs to the company record) or be migrated into the dismissals.
 
 ### Contract for a setup check (phase B builds 4, 5, 7, 9, 10 with it)
 

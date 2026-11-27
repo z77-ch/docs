@@ -196,7 +196,9 @@ for a mandator that settles no VAT). Opt-in, module-agnostic:
 ADR-052 (built 2026-10-22, board `dashboard-bauplan`). The entry page knows no module: tiles
 come from the menu, entries from a registry, access from `canReach()`.
 
-- **The one bare screen** (owner 2026-10-22, «eine Ausnahme und Entscheidung für das Dashboard»): `DashboardController` passes `shellBare` → the skeleton adds `be-shell--bare`, band and crumb row collapse, the page starts right under the top bar. No other screen may use it — every other screen starts at the same height (band + crumb always render). The head: «Übersicht», under it small «Angemeldet als: {login} – {BackendUser::name} · dd.mm.yyyy».
+- **The one bare screen** (owner 2026-10-22, «eine Ausnahme und Entscheidung für das Dashboard»): `DashboardController` passes `shellBare` → the skeleton adds `be-shell--bare`, band and crumb row collapse, the page starts right under the top bar. No other screen may use it — every other screen starts at the same height (band + crumb always render). The head: «Angemeldet als: {login} – {BackendUser::name} · dd.mm.yyyy». The title «Übersicht» above it is hidden visually since 2026-11-27 (owner: it read as a crumb line) — still the page's `<h1>` for screen readers.
+- **The dashboard's rail lists its tiles** (owner 2026-11-27): the dashboard stands in no menu section, so `partials/subnav` had nothing to show. `DashboardController` passes `railSections` (name + first-page URL of every tile, the same access-filtered list the tiles come from); the subnav renders one row per tile with the tile's glyph (`ModuleIcons::forSection`), no header. Every other screen leaves `railSections` unset and gets the section tree as before. The top bar's module zone names the dashboard «Dashboard» (`activeSection` 'overview' → `partials/shell/topbar`; «Menü» only on a screen outside every section, owner 2026-11-27).
+- **The tile head is an accent band** (owner 2026-11-27): `.be-tile__head` bleeds through the tile's padding over its whole width, ground `--be-accent`, ink `--be-on-accent-page`; the glyph sits in an outlined square, «+ Neu» is inverted (ink as ground). Below a 1700px viewport «+ Neu» shows only the «+» (the label pushed the title into an ellipsis); the label stays for screen readers, the `title` shows it on hover. `_overview.scss`.
 
 | Piece | Where | Does |
 |---|---|---|
@@ -299,7 +301,7 @@ frontend admin overlay (see [`view-layer.md`](view-layer.md) partial labels).
 ```php
 // BackendAbstractController::html() auto-injects three context vars:
 $context['userPreferences'] = DI::getCurrentUserService()->getPreferences();
-$context['bePalette']       = $context['userPreferences']->getPalette();             // e.g. 'salbei' (the default)
+$context['bePalette']       = $context['userPreferences']->getPalette();             // e.g. 'schwarzweiss' (the default since 2026-11-26)
 $context['beTheme']         = $context['userPreferences']->isDarkMode() ? 'dark' : 'light';
 ```
 
@@ -317,7 +319,7 @@ $context['beTheme']         = $context['userPreferences']->isDarkMode() ? 'dark'
 | `BackendAbstractController::html()` | auto-injects `userPreferences`, `bePalette`, `beTheme`, `beFontScale` into every HTML context |
 | `html-shell-skeleton.tpl.php` | renders `data-be-palette` / `data-be-theme` on `<html>` — CSS selectors in `_colors.scss` activate the matching token set |
 | `_colors.scss` | single source of truth for palette + theme token values (`[data-be-palette="..."]` / `[data-be-theme="dark"]` selectors) |
-| `appearance.js` | live palette/dark toggle and the font-size slider (80–120 %, step 5, default 100 — `UserPreferences::FONT_SCALE_MIN/MAX` clamps on read and write, [`css-backend.md`](css-backend.md) FONT-SCALE-LINEAR-001); sets `<html>` data-attributes (instant switch) + POSTs to save endpoint |
+| `appearance.js` | live palette/dark toggle and the font-size slider (85–115 %, step 5, default 100 on a 16px root — `UserPreferences::FONT_SCALE_MIN/MAX` clamps on read and write, [`css-backend.md`](css-backend.md) FONT-SCALE-LINEAR-001 / FONT-FLAT-001); sets `<html>` data-attributes (instant switch) + POSTs to save endpoint |
 | `SystemController::savePreferencesAction()` | persists `UserPreferences` via `CurrentUserService::savePreferences()` |
 
 ## clear-cache flow

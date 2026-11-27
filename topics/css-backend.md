@@ -1,6 +1,6 @@
 # css-backend
 
-2026-11-26
+2026-11-27
 
 ## entry
 
@@ -38,10 +38,11 @@ A **single `base.css`** carries tokens + all components + their responsive rules
 packages/module-backend/res/scss/
 ├── tokens/
 │   ├── _fonts.scss         @font-face (global): Instrument Sans 400–700 + IBM Plex Mono 400/500, latin + latin-ext, OFL — res/assets/fonts/
-│   ├── _colors.scss        --be-* backend theme tokens (7 palettes × light/dark, Salbei = the base block) + derived roles
-│   ├── _typography.scss    font tokens (ui/base/display = Instrument Sans, mono = IBM Plex Mono); --font-size-* in rem of the 14px root (no slider factor — the slider acts once, on the root in base/_elements.scss); --be-font-scale-cap + font-size-capped mixin
-│   ├── _spacing.scss
-│   └── _effects.scss       --z-topbar:40, --z-dropdown:100, --z-overlay:300, shadows, transitions, radii (+ roles --radius-card 8px, --radius-field 5px)
+│   ├── _colors.scss        --be-* backend theme tokens (8 palettes × light/dark, Salbei = the base block, default Schwarz-Weiss) + derived roles
+│   ├── _typography.scss    font tokens (ui/base/display = Instrument Sans, mono = IBM Plex Mono); --font-size-* all 1rem = 16px at slider 100 % (flat baseline FONT-FLAT-001, 2026-11-26; no slider factor — the slider acts once, on the root in base/_elements.scss); --be-font-scale-cap + font-size-capped mixin
+│   ├── _spacing.scss       --space-* + the work side's top: --be-work-top / --be-card-top / --be-step-pad (read by the list AND the rail, RAIL-ALIGN-001)
+│   ├── _effects.scss       --z-topbar:40, --z-dropdown:100, --z-overlay:300, shadows, transitions, radii (+ roles --radius-card 8px, --radius-field 5px)
+│   └── _signs.scss         --be-sign-* status signs (SVG data URLs: five masks + the success image light/dark) + mixins `box` / `mask` / `image` for a status's ::before
 ├── base/
 │   ├── _normalize.scss
 │   ├── _elements.scss      base html/body + slim backend scrollbars
@@ -51,6 +52,7 @@ packages/module-backend/res/scss/
 │   ├── _buttons.scss       .be-btn (palette-aware) + .be-icon-btn — the single backend button system (font-capped by default)
 │   ├── _icon.scss          .be-icon — presentation for <use> sprite icons (stroke/currentColor/caps)
 │   ├── _input-look.scss    mixins only (no CSS): `rest` + `focus` + `quiet` (a control in a table row) — THE input look every text control includes
+│   ├── _link-hover.scss    mixin only (no CSS): `hover` — THE hover of a link / navigation entry, a grey ground from the element's own text colour (LINK-HOVER-001)
 │   ├── _forms.scss
 │   ├── _docview.scss       .be-docview — a stored document LARGE beside the fields of its record (the receipt window, 2026-11-12)
 │   ├── _switch.scss        .be-switch reusable on/off toggle slider
@@ -164,7 +166,8 @@ itself into `public/` is NOT touched — that file belongs to the project.
 | Icon look (`.be-icon`) / add an icon (`<symbol>`) | `components/_icon.scss` / `res/view/templates/partials/icon-sprite.tpl.php` |
 | Backend list rows with real columns (v2 — use this for new screens) | `components/_list.scss` (`.be-list__frame` / `__table` / `__head` / `__row` / `__cell` / `__detail`; a tree of rows in the same columns: `__table--tree`, `__cell--indent-2` — LIST-TREE-001) |
 | Legacy tree/hub rows (v1 — migration only, do not build new screens on it) | `components/_list.scss` (`.be-tree` / `.be-tree--hub`) |
-| Group tabs, section headers, empty state, section hint | `components/_list.scss` (`.be-tabs`, `.be-list__section-*`, `.be-list__empty`) |
+| Group tabs, section headers, empty state, section hint | `components/_list.scss` (`.be-tabs`, `.be-list__section-*`, `.be-list__empty`; a header without title — a list with view tabs, LIST-TAB-TITLE-001 — keeps «Zurücksetzen» left and the count right by itself) |
+| The open STEP at the top of a list's card (sign, bold title, one line, «→», the whole box a link) | `components/_list.scss` (`.be-list__step` / `--urgent` / `__step-body` / `__step-title` / `__step-text` / `__step-go`) — markup the kernel's `partials/listStep` ([`listing.md`](listing.md)); first user the order list's open Faktura-Journal |
 | Pager for a v2 list | `components/_pagination.scss` (`.be-pagination`) |
 | A list FILTER over a long tree (the article list's product group): the field, «×», the no-script link list, the popover (search, path, one level, counts, «›», `mark`) | `components/_tree-picker.scss` (`.be-tree-picker` / `__field` / `__panel` / `__pop` / `__row` …) — markup from the kernel's `partials/treePicker`, behaviour core.js «tree picker» |
 | A searching CHOICE window (the article picker over the order window, 2026-10-19): toolbar with tree picker + search field, the compact list whose number button picks and whose cells are its labels, the active row on the accent; the order row's magnifier beside the article number | `components/_pick-list.scss` (`.be-pick` / `__bar` / `__find` / `__item`, `.be-rows__article` / `__pick`) — markup module-article's `Backend/ArticlePicker/pick`, behaviour core.js «pick list» |
@@ -237,7 +240,10 @@ sits INSET in the cell (cell padding 7px 8px, radius 7px, the cell's height less
 Create = the ISLAND's light `--be-accent` with the island's dark `--be-on-accent`; confirm =
 `--be-confirm-island` (light green `#6fd49c`) with `--be-on-confirm-island` (`#0f2a1b`) in every
 palette. Dark mode has no island: create takes the dark theme's (light) `--be-accent` with
-`--be-on-accent-page` (the dark ground), confirm the same light green. A picker panel in the cell
+`--be-on-accent-page` (the dark ground), confirm the same light green. **Exception Schwarz-Weiss
+light** (owner 2026-11-26, decision 1 = B, PALETTE-SW-001): no dark island — the column stays white
+with a black line on its right; create = black with white ink, confirm = `#1a7f4b` with white ink.
+A picker panel in the cell
 is the **shell card** (`@mixin shell-card`, `_shell.scss`; owner 2026-10-08 — the first build's
 pure white card did not belong to the palette): a light TINT of the page accent —
 `color-mix(--be-accent-soft-page 45%, --be-surface-page)`, a 1px line
@@ -316,6 +322,13 @@ there (`clip-path`, as `.be-shell-band__slot--1 .be-btn__label` does), never
 create, «↑» upload, «✓» confirm) is exempt: it marks the kind, it does not repeat the
 label.
 
+⚠️ **The help trigger is the icon alone, on every screen size** (owner 2026-11-27, replaces the
+«? Hilfe» measurement above for this one control): a square button, a ringed «?» in the text
+colour, the frame of the «Umgebung» button beside it (`_help-host.scss`). The button's accessible
+name and tooltip stay «Hilfe (F1)» (`aria-label` on the button, the word span is `aria-hidden`).
+The KI-Assistent variant is its «✦» alone in the same square (owner 2026-11-27, same day), name
+«KI-Assistent» kept; the window title bar keeps the word «Hilfe».
+
 | Kind | Class | Look |
 |---|---|---|
 | Create | `.be-btn--primary` | accent fill, «+» — the action cell's create action (there: the island's light accent, dark ink) |
@@ -328,10 +341,11 @@ label.
 | Leave | `.be-btn--quiet` | text only, at the end of an action row behind `.z77-form-actions__sep` — «Schliessen» (`modalActions` `cancelKind` 'quiet' — the default since 2026-10-22; 'ghost' is the outlined alternative) |
 | Save with nothing to save | `.be-btn[data-dirty-submit][aria-disabled="true"]` | quiet: line and muted ink, readable, no fill — core.js «dirty forms» switches it back to its fill as soon as a field differs (order window 2026-10-18) |
 | Status in an action row | `.be-status-field` (+ `--accent` / `--warn` / `--good` / `--danger`) | a FIELD: input look, «STATUS» label, phase dot, name — a link to the status change or the wrapper of a start-status select; replaces `.be-status-pill` |
-| Tab (language, mode, view) | `.be-viewtabs` (aliases until migrated: `.be-tabs`, in-band `.be-lang-switch`) | text with an accent underline, never a box |
+| Tab (language, mode, view) | `.be-viewtabs` (aliases until migrated: `.be-tabs`, in-band `.be-lang-switch`) | text with an accent underline, never a box. **Schwarz-Weiss only** (owner 2026-11-27, VIEWTABS-SW-001): the active tab is a solid «Fernblau» fill (`--be-active` `#4d6f8f`, white ink; dark: white, black ink), rounded, inset by the band's padding — no underline, not grey |
 | Tab over sections of ONE form (radio tabs) | `.be-viewtabs__tab--for` (a `<label for>` of a `.be-radiotabs__radio` in the form) — the Mandant's Briefkopf · UID und MWST · Konten · Belege (its only user) | the same underline tab; switches a panel, not a page |
 | Switch (on/off) | `.be-switch` (checkbox inside); `.be-switch--for` (a `<label for>` of a `.be-reveal__toggle` placed before it — the journal's «MwSt»); `.be-switch__label-more` (the tail of a label that leaves on a phone — the Kreditorenjournal's «KI-Erkennung» → «KI» in the toolbar; the input keeps the full name in `aria-label`) | the only on/off form |
 | List filter over a long tree (a node of a tree, not an area: the article list's «Warengruppe», owner 2026-10-18) | `.be-tree-picker` (kernel `partials/treePicker`, core.js «tree picker»), in the TOOLBAR | a FIELD like `.be-status-field` (input look, muted uppercase label, the chosen node's path shortened «A › … › Z», caret) + «×» to clear; the popover (card, `--be-line-strong`, `--shadow-lg`): search over all levels (hits with their parent path, matches as `mark` in `--be-warn` 28 %), the path line back, ONE level with «Alle in «X»» first, counts in mono, «›» to the children; without JS a `<details>` with every node as an indented link |
+| Link / navigation entry (hover) | `@include link.hover($bleed, $radius, $focus)` from `components/_link-hover.scss` — rail nodes, «Dashboard», crumbs, area name and switcher tiles, environment items, row menu and picker items, service-panel rows, tile links / rows / figures, pending rows, pager links, tree-picker links / steps / entries, a state link in a list row (LINK-HOVER-001) | a soft grey rounded ground on hover and keyboard focus: `color-mix(in srgb, var(--be-text) 10%, transparent)` as a background IMAGE over the element's own ground; text colour unchanged; `$bleed` = padding taken back as negative inline margin for a link without padding of its own (the text does not move); `--radius-sm` unless the element has its own radius |
 | Area selection | `.be-shell-add--select` in `.be-shell-select` | dropdown at the top of the rail: «Variante B» — inset like the action button (7px 8px, radius 7px, its height), island `--be-accent-soft` fill, 1px island-accent frame, the value (`.be-shell-select__value`) bold in the accent, chevron right; the list = the floating shell card (control width, `max-height` with own scroll), current item with a check mark, `.be-shell-add__sep` before «Alle Jahre» |
 - When a form grid lays out fields (`.be-form__grid`, `--single`) → MUST size its columns `minmax(0, 1fr)` and give `.be-form__field` `min-width: 0`; MUST NOT use a bare `1fr` — a column's minimum is then its widest content (a native file field, a long option) and the grid grows past its window (owner 2026-11-19: «Geschäftlich buchen …» overflowed, «Gegenkonto» cut off).
 - **Slot numbers are positions, not names.** `hc1|hc2|hc3` and `__slot--1|--2` say where a
@@ -342,7 +356,28 @@ label.
 
 ## backend theme tokens (--be-*)
 
-Defined in `tokens/_colors.scss`, declared on the `.be` wrapper (`<html class="be">`), not `:root` (ADR-018) — default **`salbei`**, light (since 2026-10-17, ADR-051 addendum: the owner's order-window draft as a palette; `UserPreferences::DEFAULT_PALETTE`, first in `Palettes::all()`). Salbei is the `.be` block and the bare `[data-be-theme="dark"]` block; every other palette overrides it with `[data-be-palette="werkbank|citrus|coral|lagune|beere|sonne"]` and `[data-be-palette="…"][data-be-theme="dark"]` (kept after the `.be` block in source → wins at equal specificity). A user who stored a palette keeps it — `werkbank` now has its own selectors (tokens and the light-mode island in `_shell.scss`).
+Defined in `tokens/_colors.scss`, declared on the `.be` wrapper (`<html class="be">`), not `:root` (ADR-018). Eight palettes. Default **`schwarzweiss`** «Schwarz-Weiss» since 2026-11-26 (owner, design-lab handoff step 1, PALETTE-SW-001; `UserPreferences::DEFAULT_PALETTE`, first in `Palettes::all()`); `salbei` was the default 2026-10-17 – 2026-11-26 (ADR-051 addendum: the owner's order-window draft as a palette). Salbei is the `.be` block and the bare `[data-be-theme="dark"]` block — the BASE, what applies when no palette block matches; every other palette, the default included, overrides it with `[data-be-palette="schwarzweiss|werkbank|citrus|coral|lagune|beere|sonne"]` and `[data-be-palette="…"][data-be-theme="dark"]` (kept after the `.be` block in source → wins at equal specificity). A user who stored a palette keeps it — and `UserPreferences::toArray()` always writes the palette, so whoever saved ANY preference before 2026-11-26 (appearance, partial labels, page editor) stays on the palette of that day.
+
+| Schwarz-Weiss | bg | surface | surface2 (card) | topbar | text / topbar-text / muted / line / accent / good / warn | accent-soft | on-accent |
+|---|---|---|---|---|---|---|---|
+| light | `#e4e4e3` | `#f2f2f2` | `#ffffff` | `#ffffff` | `#000000` | `#e4e4e3` | `#ffffff` |
+| dark | `#1e1e1e` | `#2a2a2a` | `#3a3a3a` | `#2a2a2a` | `#ffffff` | `#2a2a2a` | `#000000` |
+
+Fixed derived roles for this palette only (the shared formulas would go wrong): `--be-confirm`
+`#1a7f4b` in both themes — mixed from `--be-good` it would be black, and «Bestätigen» stays green
+(green only for confirming / posting); `--be-confirm-ink` `#1a7f4b` light, `#5cc98c` dark; dark
+`--be-field` `#2a2a2a` and `--be-row-tint` `#333333` (the draft's dark field is darker than the
+card; the formula mixes toward the text and would lift it). Light field and row tint stay derived;
+`--be-line-strong` derives to black / white. `--be-danger` stays `#dc2626`. Light-mode column 1 is
+NOT a dark island (owner 2026-11-26, decision 1 = B): white `--be-nav`, `--be-surface #f2f2f2`,
+`--be-surface2 / --be-field #ffffff`, `--be-row-tint #f2f2f2`, black ink, line and accent,
+`--be-accent-soft #e4e4e3`, `--be-on-accent #ffffff`, `--be-confirm-island #1a7f4b` with white
+ink, `color-scheme: light`, and a black line on its right (column, action cell, topbar module zone).
+Two roles exist in this palette ONLY (owner 2026-11-27, VIEWTABS-SW-001, the design lab's tokens):
+`--be-active` / `--be-on-active` — the fill and ink of the active view tab, `#4d6f8f` «Fernblau» /
+`#ffffff` in light, `#ffffff` / `#000000` in dark. Read only by palette-scoped rules
+(`[data-be-palette="schwarzweiss"] .be-viewtabs__tab.is-active` in `_shell.scss`, the radio-tab
+labels in `_radiotabs.scss`); the other palettes keep the underline.
 
 | Salbei | bg | surface | surface2 (card) | text | muted | line | accent | accent-soft | good | warn |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -351,7 +386,7 @@ Defined in `tokens/_colors.scss`, declared on the `.be` wrapper (`<html class="b
 
 From the draft: bg, sheet → `--be-surface2`, fg, muted, line, accent, accent-soft, warn (light and dark block); `--be-surface` (between ground and card), `--be-topbar` (= surface), good and the light-mode island (deep sage `#1a2f29`, accent `#6cc3ad`) are additions — the draft has no shell. `--be-danger` stays the shared `#dc2626`.
 
-**Derived roles** (ADR-051 decision 2) — declared once on `.be` next to `--be-confirm`, every palette and theme; redeclared on the light-mode island so they follow its dark set:
+**Derived roles** (ADR-051 decision 2) — declared once on `.be` next to `--be-confirm`, every palette and theme (exception: the fixed values of Schwarz-Weiss above); redeclared on the light-mode island so they follow its dark set:
 
 | Token | Formula | Salbei light (draft) | Salbei dark (draft) |
 |---|---|---|---|
@@ -363,18 +398,22 @@ From the draft: bg, sheet → `--be-surface2`, fg, muted, line, accent, accent-s
 
 **Faces** (ADR-051 addendum, replacing Inter): `--font-family-ui` / `-base` / `-display` = `'Instrument Sans', 'Segoe UI', system-ui, sans-serif`; `--font-family-mono` = `'IBM Plex Mono', ui-monospace, Consolas, monospace`. Self-hosted woff2 under `res/assets/fonts/instrument-sans/` (400/500/600/700) and `res/assets/fonts/ibm-plex-mono/` (400/500), latin + latin-ext with `unicode-range`, `font-display: swap`, each folder with its `OFL.txt`; taken from `@fontsource/*` 5.3.0, not a dependency. Published to `public/assets/backend/fonts/` like the CSS. The page CSP ships report-only (`SecurityHeaders`: `default-src 'self'`, which covers the self-hosted fonts); an enforced CSP must keep fonts on `'self'`. The Inter files are gone from the package (a project's published `fonts/inter/` copy is dead and may be deleted).
 
-**Font sizes and the font slider** (`tokens/_typography.scss`, FONT-SCALE-LINEAR-001). The slider (service panel › Aussehen › Schriftgrösse, 80–120 %, step 5, default 100 in the middle) sets `--be-font-scale` on `<html>`; it acts ONCE, on the root: `html { font-size: calc(0.875rem * var(--be-font-scale)) }` = 14px × slider. Every `rem` follows from there — the tokens below, spacing and the other rem values. The tokens carry no slider factor of their own:
+**Font sizes and the font slider** (`tokens/_typography.scss`, FONT-SCALE-LINEAR-001; flat baseline FONT-FLAT-001, owner 2026-11-26). The slider (service panel › Aussehen › Schriftgrösse, 85–115 %, step 5, default 100 in the middle — 7 stops) sets `--be-font-scale` on `<html>`; it acts ONCE, on the root: `html { font-size: calc(1rem * var(--be-font-scale)) }` = 16px × slider. Every `rem` follows from there — the tokens below, spacing, and the shell's heights and widths that hold text (`--shell-bar` 3rem, `--shell-crumb` 2rem, `--shell-tabs` 2.375rem, `--shell-c1` 15.5rem, the rail's node 2rem, the service panel 20rem, the module panel 22.5rem …). The tokens carry no slider factor of their own.
 
-| Token | Value | at 0.8 | at 1.0 | at 1.2 |
-|---|---|---|---|---|
-| `--font-size-xs` | `12/14 rem` (0.857rem) | 9.6px | 12px | 14.4px |
-| `--font-size-sm` | `13/14 rem` (0.929rem) | 10.4px | 13px | 15.6px |
-| `--font-size-md` | `1rem` — body text | 11.2px | 14px | 16.8px |
-| `--font-size-lg` | `15/14 rem` (1.071rem) | 12px | 15px | 18px |
-| `--font-size-xl` | `18/14 rem` (1.286rem) | 14.4px | 18px | 21.6px |
-| `--font-size-2xl` | `20/14 rem` (1.429rem) | 16px | 20px | 24px |
+**One measure (FONT-FLAT-001, owner 2026-11-26).** Every font size in the backend is 16px at 100 % — lists, number column, rail, navigation, menus, tabs, buttons, forms, service panel, cards, overview, help/assistant hosts, the Drive (DMS, `--dms-font-size-*` = 1rem), the media field and the upload component (`1rem`, host-neutral). The six token names stay and the existing uses keep them, so the former intent of each place stays readable; the tiers (smaller heads, hints, badges; larger titles) are re-introduced later, deliberately, with the owner (`## pending`). This replaces the tiered table and the 80–120 % range of the same morning.
 
-Capped regions (`.be-font-cap`, `.be-btn`, the mixin `font-size-capped`) redeclare the same tokens as `rem × min(slider, cap) / slider` = base size × min(slider, `--be-font-scale-cap`): with the cap at `1.0` they shrink with the slider below 1.0 and hold the 1.0 size above it (FONT-CAP-001). The stored value is clamped to 0.80–1.20 (rounded to the 5 % step) by `UserPreferences` on read and on write.
+First smaller size back (owner 2026-11-27): in the service panel the meta line under the name
+(«superUser · z77 Backend»), the palette buttons and the footer are `.75rem` (25 % below the
+baseline, follows the slider); the rows lost their grey sub line («Debug-Overlay, API-Logs» …) —
+the panel shows each label alone.
+
+| Token | Value | at 0.85 | at 1.0 | at 1.15 | former tier (14px root) |
+|---|---|---|---|---|---|
+| `--font-size-xs` … `--font-size-2xl` | `1rem` | 13.6px | 16px | 18.4px | xs 12 · sm 13 · md 14 · lg 15 · xl 18 · 2xl 20px |
+
+Exceptions — a size that is not text, or small text in a fixed small shape (rem, so they still grow with the slider): the glyphs (✓ / – in the checkbox `_forms.scss` `.be-choice__input::after` and `.be-reveal__label::before`; the carets `.be-status-field__caret`, `.be-tree-picker__caret`; the × of flash, popup and `.be-rows__remove`; the ⋮ `.be-tree__menu` and DMS `.dms-rowmenu`; the sort arrows `.9em`; the area switcher's glyph `.be-shell-mod__apps`; the window and help title-bar buttons; the ✦ of the assistant trigger and the «?» badge of the help trigger; the upload ↑ and its row ✓/!; the small and large «A» either side of the slider) and the initials in the avatar circles (`.backend-topbar__avatar`, `.backend-service-panel__avatar`) and the environment pill's mono label. Out of scope: mail templates, the frontend, the member area, kernel debug output and the statistics report (`StatsController/_report`, «paper» with its own scoped styles, also printed and opened without the backend stylesheet).
+
+Capped regions (`.be-font-cap`, the mixin `font-size-capped` — today the service panel's INFO dump and its row badge) redeclare the same tokens as `rem × min(slider, cap) / slider` = base size × min(slider, `--be-font-scale-cap`): with the cap at `1.0` they are 16px from 100 % up to 115 % and shrink with the slider down to 85 % (FONT-CAP-001). The cap only reaches text sized through a `--font-size-*` token. `.be-btn` is NOT capped since 2026-11-26 — a button grows with the slider like every other text. The stored value is clamped to 0.85–1.15 (rounded to the 5 % step) by `UserPreferences` on read and on write; a value stored under the 80–120 range (0.80) reads 0.85 — no migration.
 
 Active palette + theme are written by `BackendAbstractController::html()` as `data-be-palette` / `data-be-theme` attributes on the `<html>` element (rendered by `html-shell-skeleton.tpl.php`, `html-guest-skeleton.tpl.php` and `html-bare-skeleton.tpl.php`; also `--be-font-scale` as an inline style). `appearance.js` updates these attributes on user clicks for instant switching and POSTs the change to `/backend/system/system/save-preferences` for persistence. No JS-side token mirror — `_colors.scss` is the single source of truth.
 
@@ -388,8 +427,8 @@ Active palette + theme are written by `BackendAbstractController::html()` as `da
 | `--be-text` | primary text |
 | `--be-muted` | secondary / helper text |
 | `--be-line` | borders and dividers |
-| `--be-accent` | primary accent color (dark sage green in the default Salbei) |
-| `--be-accent-soft` | accent at low opacity (hover backgrounds) |
+| `--be-accent` | primary accent color (black / white in the default Schwarz-Weiss, dark sage green in Salbei) |
+| `--be-accent-soft` | accent at low opacity (the active / current entry, the area selection) — NOT the hover of a link, which is the neutral grey of `_link-hover.scss` (LINK-HOVER-001; accent-soft is tinted in every palette but Schwarz-Weiss) |
 | `--be-good` | success / green indicator |
 | `--be-warn` | warning / orange indicator |
 | `--be-danger` | the one danger red `#dc2626` (palette-independent) |
@@ -397,6 +436,73 @@ Active palette + theme are written by `BackendAbstractController::html()` as `da
 | `--be-confirm` / `--be-confirm-ink` / `--be-confirm-island` | confirm fill / confirm line + ink / confirm in the action cell (see ACTION-CELL-ISLAND-001) |
 | `--be-*-page` | the page's own surface, text, line, accent — island-proof (see ACTION-CELL-ISLAND-001) |
 | `--be-field` / `--be-line-strong` / `--be-row-tint` | derived roles, see above |
+
+## status signs
+
+Design-lab handoff «Statuszeichen, Schritt 1» (Lulu's signs, round 2026-11-26), owner decisions
+2026-11-27 (STATUS-SIGNS-001). A status is a SIGN before its word instead of a coloured pill or a
+dot: a circle one text line high, only fill and mark change; the word stays and stays in text
+colour — form and word carry the meaning, never the colour alone. Red only for «dringend», green
+only for «erledigt».
+
+One home: `tokens/_signs.scss` — the signs as custom properties on `.be` (ADR-018), each an SVG
+data URL, plus three mixins (`box`, `mask`, `image`) a component includes in its `::before`.
+
+| Token | Meaning | Kind |
+|---|---|---|
+| `--be-sign-danger` | dringend — a disc, the «!» punched out | mask |
+| `--be-sign-warning` | offen — a clock (hands about 12 and 4) | mask |
+| `--be-sign-success` | erledigt — a ring with a check | mask |
+| `--be-sign-info` | Hinweis / neutral — a ring with an «i» | mask |
+| `--be-sign-cancelled` | storniert — a ring with a slash (drawn, no user yet) | mask |
+| `--be-sign-success-img` | erledigt, filled — green disc `#1a7f4b` + white check; dark: `#3fb950` + black check (`[data-be-theme="dark"]`) | image (fixed colours) |
+
+- **Mask** (one colour): the SVG gives the shape only, `background` the colour — the sign follows
+  every palette and light/dark. **Image** (two colours): the SVG is the picture, one version per theme.
+- **Size `1.25em`** (the lab's 20px at 16px text): it follows the font slider AND the line it stands
+  in; the box is one line high (`1lh`, at least 1.25em) and the sign `contain`ed in it, so it sits
+  centred on the first line also where the text wraps.
+- **Mask beside the sprite.** The `<use>` sprite (`partials/icon-sprite.tpl.php`, `.be-icon`) stays
+  the path for an icon IN markup; a status sign is pure CSS (`::before` + mask), no markup — the
+  ~150 templates with a badge stay unchanged and the colour comes from a token. The CSP admits the
+  data URL (`img-src 'self' data:`, `SecurityHeaders`). Not a breach of the icon rule below: the
+  sign replaces the pill or the dot as the carrier of the state, it is no decoration of a control.
+
+Where they sit (no markup or template changed):
+
+| Place | Sign | Colour |
+|---|---|---|
+| `.badge` (base, also `--info`, `--muted`, `--primary`) | `--be-sign-info` | mask, `--be-text` |
+| `.badge--warning` | `--be-sign-warning` | mask, `--be-text` |
+| `.badge--danger` | `--be-sign-danger` | mask, `--be-danger` |
+| `.badge--success` | `--be-sign-success-img` | image |
+| `.be-tile__todo` (a dashboard tile's row) | `--be-sign-warning` | mask, `--be-text` |
+| `.be-tile__todo--urgent` | `--be-sign-danger` | mask, `--be-danger` |
+| `.be-list__step` (the open step on top of a list, 2026-11-27) | `--be-sign-warning` | mask, `--be-text` |
+| `.be-list__step--urgent` | `--be-sign-danger` | mask, `--be-danger` |
+| `.flash-msg` (success, info) | `--be-sign-success` | mask, `--color-text` |
+| `.flash-msg--error` | `--be-sign-danger` | mask, `--be-danger` |
+| `.be-form__field-error` (not when emptied), `.z77-form-actions__errors` (host binding), `.be-modal__alert--error` | `--be-sign-danger` | mask, `--be-danger` |
+
+`.badge`: no pill — no ground, no radius, no padding, no frame; word in `--be-text`, gap `.4rem`.
+`.be-tile__todo`: the sign replaces the dot (`--dot` is gone), its column `1.25em`, gap
+`--space-3`; the urgent row's figure is in text colour (was tinted red); hover = the shared link
+hover (LINK-HOVER-001, was `--be-accent-soft`) like the pending list's row. `.be-modal__alert--error`: the sign stands absolutely in the left
+padding (an alert holds free content — text, a list — that a flex row would split).
+
+Decisions 2026-11-27 (owner):
+
+1. **Danger as a MASK** (B): `--be-sign-danger` in `--be-danger` — the red follows the token; the «!»
+   shows the ground behind it instead of white, no white rim in dark. The lab's two-colour
+   `--be-sign-danger-img` (fixed `#991b1b`) is NOT built — it waits for the decided red (`## pending`).
+2. **«erledigt» in a badge green FILLED**, as Lulu built it (the pair to «dringend»):
+   `--be-sign-success-img` with fixed colours — a deliberate exception to «colours only through
+   tokens» for this one image. A flash keeps the one-colour mask.
+3. **Mask, not sprite** (see above).
+
+Deviation from the lab's table: the flash ring is `--color-text`, not `--be-text` — the flash grounds
+are the fixed light `--color-*-bg` in both themes, the dark theme's light `--be-text` would vanish on
+them. The table's `.flash-msg--danger` does not exist (flash types: success / info / error).
 
 ## JavaScript (no build)
 
@@ -437,9 +543,9 @@ packages/module-backend/res/view/templates/
 
 - When a backend SCSS change must be visible in a PROJECT → MUST run `npm run build:backend` (framework) AND `composer install` (project); the browser serves `public/assets/backend/css/base.css`, not the package file. MUST NOT conclude from a fresh `vendor/` that the project is current — with path repos/junctions `vendor/` is always current and `public/` is not (INST-ASSET-DIFF-001).
 - When styling colors, spacing, or effects → MUST use `--be-*` token variables; values MUST NOT be hardcoded
-- When setting a font size → MUST use a `--font-size-*` token for a new one; MUST NOT multiply it by `--be-font-scale` (the root already holds the slider — it would count twice, FONT-SCALE-LINEAR-001) and MUST NOT give it in px (px ignores the slider). A region whose text must not grow with the slider → `.be-font-cap` / `font-size-capped` (FONT-CAP-001), never a fixed size
+- When setting a font size → MUST use a `--font-size-*` token (all `1rem` today, FONT-FLAT-001 — pick the name of the intended tier so the later re-introduction finds it); MUST NOT multiply it by `--be-font-scale` (the root already holds the slider — it would count twice, FONT-SCALE-LINEAR-001), MUST NOT give it in px (px ignores the slider) and MUST NOT add a raw rem size for TEXT. Only a glyph, or small text in a fixed small shape (avatar initials, the environment pill), keeps a raw size — in rem. When a height or width holds text → MUST be rem (it grows with the slider like the text in it), never px; borders, hairlines, radii and shadows stay px. A region whose text must not grow with the slider → `.be-font-cap` / `font-size-capped` (FONT-CAP-001), never a fixed size; a button is NOT such a region (owner 2026-11-26)
 - When a surface sets its own dark or light ground (a theme, an island) → MUST declare `color-scheme` with it; MUST NOT fix a native control's option list or picker per control — the browser draws those from `color-scheme` (DARK-NATIVE-001)
-- When declaring tokens (`--be-*`, `--color-*`, `--space-*`, …) → MUST place the default block on the `.be` wrapper selector (the four `tokens/_*.scss` files), keeping the `[data-be-palette]` / `[data-be-theme]` override blocks after it; MUST NOT declare design tokens on `:root` (ADR-018; only `@font-face` in `tokens/_fonts.scss` stays global)
+- When declaring tokens (`--be-*`, `--color-*`, `--space-*`, …) → MUST place the default block on the `.be` wrapper selector (the `tokens/_*.scss` files), keeping the `[data-be-palette]` / `[data-be-theme]` override blocks after it; MUST NOT declare design tokens on `:root` (ADR-018; only `@font-face` in `tokens/_fonts.scss` stays global)
 - When adding component styles → MUST live in `components/_*.scss`; MUST NOT be added to layout files
 - When an embedded foreign fragment (`.dms`, later others) must follow the backend palette / dark mode → MUST bind that fragment's OWN tokens to `--be-*` in `components/_dms-host.scss` using a two-class selector (`.be .dms`, specificity `(0,2,0)` — the fragment's bundle loads AFTER `base.css`, so a one-class binding loses); MUST NOT edit the fragment's SCSS to reference `--be-*` (that breaks it for every other host — ADR-018 rule 4, [`css-dms.md`](css-dms.md) DMS-HOST-BIND-001)
 - When building a NEW backend list screen → MUST use `.be-list` v2 (`__frame` > `__table` > `__head` + `__item` > `__row` > `__cell`), declaring the columns once as `--be-list-cols` on `__table`; MUST NOT use `.be-tree--hub` (v1, migration only) and MUST NOT glue several fields into one cell with `·` — that is the defect v2 exists to remove
@@ -459,20 +565,26 @@ packages/module-backend/res/view/templates/
 - When a dialog must show a fixed STATE of the record in place of a control (a setting decided elsewhere — the account dialog of a VAT account, owner S4-17 2026-11-25) → MUST use `.be-modal__alert.be-modal__alert--info` (accent family, body text colour; a `.badge--info` inside may name the state) and leave the control's input unrendered so the stored value stays; MUST NOT use `--error` (or a plain alert) for a state that is no defect, and MUST NOT disable the control instead (a disabled switch reads as «switchable later»)
 - When building a radio/checkbox **selection** (select/choose one or many) → MUST use the shared `.be-choice` component (`__input` / `__label`, optional `--filled` for a tinted row); MUST NOT use `.be-switch` for that (the switch is on/off only)
 - The header band renders ALWAYS (both slots, even when empty) — it is a property of the shell, not of the screen (HEADER-BAND-ALWAYS-001). When a screen has no global action → MUST leave the slot empty rather than reintroduce a conditional band; MUST NOT invent an add button for a screen whose actions are all per row (use `.be-shell-status` for its state instead).
-- The rail starts DIRECTLY under the action cell, and the action cell is as high on every page, empty or not (SHELL-RAIL-TOP-001, owner 2026-11-21, decided on a board of the developer canvas): «Dashboard» (`.be-shell-home`) is the rail's first row, the rail-top selection and the menu follow — at the same y on a page with a tab row and on one without. When adding a row to the shell grid or a cell beside the rail → MUST put it in the WORK column only (`grid-column: 2`, `1` below 767px) and keep `.be-shell-col--1` and `.be-shell__resizer` on the same rows (`3 / -1`); MUST NOT give a work-side row an island cell over the rail again (an empty cell there pushed every rail entry down by the row's height — 39px on every page with tabs) and MUST NOT give the action cell a height of its own (it is `--shell-band`). The one exception stays the dashboard (`be-shell--bare`, owner 2026-10-22, confirmed 2026-11-21): no band, the rail starts under the top bar. Fence: `tests/backend-shell-browser.php`.
+- The rail starts DIRECTLY under the action cell, and the action cell is as high on every page, empty or not (SHELL-RAIL-TOP-001, owner 2026-11-21, decided on a board of the developer canvas): «Dashboard» (`.be-shell-home`) is the rail's first row, the rail-top selection and the menu follow — at the same y on a page with a tab row and on one without. When adding a row to the shell grid or a cell beside the rail → MUST put it in the WORK column only (`grid-column: 2`, `1` below 767px) and keep `.be-shell-col--1` and `.be-shell__resizer` on the same rows (`3 / -1`); MUST NOT give a work-side row an island cell over the rail again (an empty cell there pushed every rail entry down by the row's height — 39px on every page with tabs) and MUST NOT give the action cell a height of its own (it is `--shell-band`). The one exception stays the dashboard (`be-shell--bare`, owner 2026-10-22, confirmed 2026-11-21): no band, the rail starts under the top bar. Fence: `tests/backend-shell-browser.php`. **Since 2026-11-27 (RAIL-ALIGN-001)** «Dashboard» and the selection keep this place, but the MENU below them no longer starts directly under them — see the next rule.
+- When a screen has a crumb line → the rail's MENU (`.backend-subnav__tree`, not the dashboard's `--sections`) MUST start so its first entry's text stands on the line of the work side's first text line — the first line in the first card (owner 2026-11-27, RAIL-ALIGN-001). The offset is ONE formula in `_subnav.scss` over shared values: `max(0, tabs + --be-work-top + 1px + --be-card-top + step − select − .25rem)` — `--be-work-top` / `--be-card-top` / `--be-step-pad` (tokens/_spacing.scss) are ALSO the paddings of `.be-list` / `.be-list__section` / `.be-list__step`, and the flags `--rail-tabs` / `--rail-step` / `--rail-select` are set in `_shell.scss` with `:has()` from what the page holds (a tab row, a step box first in the first card, a rail-top selection). MUST NOT give a screen its own offset or a px value; when a work-side top padding changes, change the token, not the rule. Phone: 0 (the drawer).
+- When a list has view tabs → MUST NOT show a section title that repeats the active tab (LIST-TAB-TITLE-001, owner 2026-11-27; [`listing.md`](listing.md) rules): the `.be-list__section-header` without `.be-list__section-title` lays itself out (`justify-content: flex-end`, «Zurücksetzen» `margin-right: auto`) — MUST NOT add per-screen CSS for it.
+- When a searching column head shows its magnifier (`.be-list__find-icon`, kernel `partials/listFindPop` — the standard lists and the journal list) → it is INVISIBLE at rest (`opacity: 0`) and appears on `:hover` / `:focus-within` of its `.be-list__find`; `--active` and `--invalid` keep it visible (LIST-FIND-HIDE-001, owner 2026-11-27). MUST hide it with opacity only — MUST NOT use `display: none` / `visibility: hidden` (no jump in the head; the button stays focusable and the target of the row cells' `<label for>`) and MUST NOT remove button or popover.
+- When the active view tab is drawn in the Schwarz-Weiss palette → it is the «Fernblau» FILL (`--be-active` / `--be-on-active`, palette-scoped rules in `_shell.scss` and `_radiotabs.scss`; VIEWTABS-SW-001, owner 2026-11-27). MUST NOT declare `--be-active` outside the Schwarz-Weiss blocks or read it in a rule that is not palette-scoped; `.be-tabs` (group tabs) and the rail's active entry are NOT part of it (candidates, `## pending`).
 - When placing a screen's main action (ADR-033 rev. 2026-10-08) → MUST put the MOST FREQUENT action of the selected navigation entry into the action cell as a speaking `{action}.act.tpl.php` (a fragment module: an `act.tpl.php` its trait adds with `addPartials(…, 'hc1')`) with exactly ONE element: a `.be-btn--primary` (create), a `.be-btn--confirm` (something is written), a `.be-shell-add` picker (several kinds) or a `.be-shell-add--split` split picker (several kinds, one the default — main part runs it and its label NAMES the default, «Daten sichern», «Texteintrag», owner 2026-10-08; the chevron part opens the menu, the default listed first); the target per entry is the table in [action cell per area](#action-cell-per-area-target). MUST NOT put a second button into the action cell, MUST NOT give it own padding/radius/colours (the shell renders it inset in the island accent, owner 2026-10-08) and MUST NOT leave a migrated screen's primary button in the toolbar. An entry without a frequent action leaves the cell EMPTY.
 - When an action-cell button is built → MUST lead with ONE `.be-icon` glyph (`icon-plus` create, `icon-check` confirm; a picker's trigger ends with the chevron carrying `.be-shell-add__chevron`) and wrap its word in `<span class="be-btn__label">`: below 767px the cell is a square icon at the right end of the toolbar row and the label is visually hidden there (it stays the accessible name). MUST NOT use a bare text node (cannot be hidden) and MUST NOT add `data-shell-act-inline` (removed 2026-10-08 — the phone shape is the rule now).
 - When a choice holds for the whole AREA (the fiscal year of Finanzen) → MUST render it at the top of the rail: a `{action}.select.tpl.php` (backend host) or `addPartials(…, 'railSelect')` from a fragment trait, built as the CSS-only `.be-shell-add--select` dropdown; MUST NOT put it into the action cell or the toolbar. On a phone it rides along in the drawer with the rail.
 - When a LIST is filtered by a node of a long tree (the article list's product group — a choice for the list, not for the area) → MUST render the kernel's `partials/treePicker` in the toolbar (hc2) with a generic node list (id, parent, name, count incl. sub-nodes) and a link per node built by the server (the filter stays a list extra the server validates); MUST NOT put it at the top of the rail (that is the AREA choice) and MUST NOT ship the tree to the script as HTML — the data island `script[data-tree-picker-data]` carries it, core.js builds the rows with `createElement` / `textContent`.
 - On a phone (below 767px) the drawer holds area switcher and rail — «Dashboard», rail-top selection, menu (SHELL-DRAWER-001) → MUST NOT move the action cell into the drawer again and MUST NOT add a second copy of the action to the toolbar — the same element is re-placed by CSS (`order` in the flex band).
-- When a screen's health or queue state must be readable without reading the body (job runner, import plan, member queue) → MUST use `.be-shell-status` (`__dot` + `__text`, `--ok` / `--bad`) in hc2; MUST NOT use `.badge` for it — a badge is the state PILL of a row (accent-soft ground, tone ink, radius 999 — palette- and theme-aware since ADR-051), not the state of a screen.
+- When a screen's health or queue state must be readable without reading the body (job runner, import plan, member queue) → MUST use `.be-shell-status` (`__dot` + `__text`, `--ok` / `--bad`) in hc2; MUST NOT use `.badge` for it — a badge is the state SIGN of a row (a sign before the word, no pill since 2026-11-27 — see [status signs](#status-signs)), not the state of a screen.
 - When a control, a region or a window waits for the server → MUST rely on the shared pending state (`kernel/shared` `_pending.scss`, set by core.js: `[data-z77-pending]` + `.z77-pending__spin`, `[aria-busy="true"]`, `html[data-z77-loading]`); MUST NOT style a busy look per screen and MUST NOT give `[aria-busy]` a meaning of its own in a component (it is the waiting part's — inert, faded after 300 ms) (owner 2026-11-20, [`fetch.md`](fetch.md) PENDING-001)
-- When a row's state is work the server does RIGHT NOW and the page follows it (a job recognising an invoice — creditor «in Arbeit …» / «KI liest …», owner 2026-11-15) → MUST add `.badge--busy` to the toned pill (`badge badge--muted badge--busy`): it only breathes (opacity), still under `prefers-reduced-motion`; MUST NOT use it for a state that waits on a person.
-- When filling a shell header slot (`{Group}/{Controller}/{action}.hc1|hc2|hc3.tpl.php`) → MUST keep it to a SINGLE line. `.be-shell-band__slot` is a FIXED-height band (`height: var(--shell-band)` = the top bar's `--shell-bar`, 48px since 2026-10-08; not `min-height`) so every slot stays exactly equal (empty or filled) and the band lines up across columns. Content that needs more room MUST go into a dropdown or popup — MUST NOT make the band taller (would break the cross-column alignment) and MUST NOT give the band its own height value (it is the top bar's). An hc1 primary action MUST wrap its text in `<span class="be-btn__label">` — the phone shows the action cell as its glyph, and a bare text node cannot be hidden by CSS (SHELL-BAND-ROW-001). A view with SEVERAL add kinds MUST use the `.be-shell-add` hc1 picker (a «＋ add» button that opens a panel to choose the type, via the panel-toggle contract) rather than stacking multiple add buttons in the band (e.g. translation: Text / Slug). The band scales in fixed px, not `em`/`rem`: it is chrome and matches the font-capped buttons (see FONT-CAP-001) — the font slider scales content, not chrome. If a slot's text grows too large at high font scale, cap it with `.be-font-cap` rather than making the height relative.
+- When a row's state is work the server does RIGHT NOW and the page follows it (a job recognising an invoice — creditor «in Arbeit …» / «KI liest …», owner 2026-11-15) → MUST add `.badge--busy` to the toned badge (`badge badge--muted badge--busy`): it only breathes (opacity), still under `prefers-reduced-motion`; MUST NOT use it for a state that waits on a person.
+- When filling a shell header slot (`{Group}/{Controller}/{action}.hc1|hc2|hc3.tpl.php`) → MUST keep it to a SINGLE line. `.be-shell-band__slot` is a FIXED-height band (`height: var(--shell-band)` = the top bar's `--shell-bar`, 3rem = 48px at slider 100 % — 48px since 2026-10-08, rem since 2026-11-26; not `min-height`) so every slot stays exactly equal (empty or filled) and the band lines up across columns. Content that needs more room MUST go into a dropdown or popup — MUST NOT make the band taller (would break the cross-column alignment) and MUST NOT give the band its own height value (it is the top bar's). An hc1 primary action MUST wrap its text in `<span class="be-btn__label">` — the phone shows the action cell as its glyph, and a bare text node cannot be hidden by CSS (SHELL-BAND-ROW-001). A view with SEVERAL add kinds MUST use the `.be-shell-add` hc1 picker (a «＋ add» button that opens a panel to choose the type, via the panel-toggle contract) rather than stacking multiple add buttons in the band (e.g. translation: Text / Slug). The band's height is `rem` and grows with the font slider, as do the top bar, the tab row, the crumb line and the rail (owner 2026-11-26, FONT-FLAT-001 — replaces «the band scales in fixed px, it is chrome and matches the font-capped buttons»: the buttons are no longer capped, so a px band would clip them at 115 %). Fixed means: one token for every slot, never a per-screen height.
 - When naming a NEW shell region, a region-level class, or a new header-slot template in any shell → MUST use the glossary job name (`topbar` / `area` / `act` / `toolbar` / `crumbs` / `rail` / `work` / `seam` — see [shell regions](#shell-regions-glossary)); new slot templates MUST be `{action}.act|toolbar|crumb.tpl.php`. MUST NOT name a class after a slot number or file suffix (`hc1`, `hc2`, `hc3`) — a client project's `.be-stock__hcfilter|hccount|hctools|…` is the counterexample. Existing `hc*` templates and `__slot--N` classes stay valid; do not rename them in passing.
 - `rail` / Schiene MUST mean the LEFT orientation column in every shell; the top bar is `topbar` (`--be-topbar`). `band` MUST mean the backend row holding action cell + toolbar only; a state sentence is `status` / Zustand (`.be-shell-status`), a shell-level notice is `banner` / Störer (`.be-shell-banner`). MUST NOT introduce a new `*-rail*` or `*-band*` name for anything else.
+- When a status needs a sign before its word (a badge, a tile row, a message, an error) → MUST take a `--be-sign-*` token from `tokens/_signs.scss` in the element's `::before` through the mixins `signs.box` + `signs.mask` / `signs.image`, sized `1.25em`; MUST NOT draw a new pill or dot for a state, MUST NOT add a sign as markup or sprite `<use>`, MUST NOT give it a px size and MUST NOT let the sign stand without its word (STATUS-SIGNS-001, [status signs](#status-signs)).
 - When a control shows an ICON → MUST have a reason: no room for the word (a phone, a narrow cell) or a layout that prescribes the icon; MUST NOT put an icon next to its own label as decoration (the «?» badge beside «Hilfe», removed 2026-10-10). Where the icon takes over, the label MUST be hidden visually (`clip-path`), never with `display: none` — an icon-only button without an accessible name is unusable with a screen reader. The leading KIND glyph of an action («+», «↑», «✓») is not a repetition and stays.
 - When a screen needs a button → MUST pick it by KIND ([buttons, tabs, switch](#buttons-tabs-switch)): `.be-btn--primary` for create and for «Speichern» (ADR-033 addendum 2026-10-16), `.be-btn--confirm` when something is booked or finalised (Buchen, Verbuchen, Fakturieren — «Definitiv stellen» until 2026-10-10), the secondary look (`.be-btn` / `.be-btn--ghost`) for tools, `.be-btn--danger` for destructive actions; MUST NOT fill a danger button and MUST NOT build a button that reads as bare text (a plain `.be-btn` has the secondary look since 2026-10-08 — that is its meaning, not an accident).
+- When a LINK or NAVIGATION ENTRY gets a hover (a text link, a rail node, a crumb, a menu or picker item, a tile's link or row, a pager link) → MUST `@include link.hover(…)` from `components/_link-hover.scss` — the soft grey ground from the element's own `--be-text` (owner 2026-11-27, LINK-HOVER-001); a link without padding takes `$bleed` so its text does not move; an active / current entry keeps its own look (`:where(:not(--active))` or a later active rule with the `background` shorthand). MUST NOT colour a link's hover with `--be-accent-soft` or change its text to the accent, MUST NOT declare the ground as a token on `.be` (it would freeze the page text and be dark inside the island). Buttons, cards (`.be-tile`), tabs (underline), switches and toggles, fields, list rows with their row hover and anything on the accent band (`.be-tile__title a` keeps its underline) MUST NOT include it; a danger menu item keeps its red tint.
 - When a screen needs tabs (language, mode Einzel/Sammel, view Offen/Alle) → MUST use `.be-viewtabs` (text with an accent underline); MUST NOT build a box/pill strip. `.be-tabs` and the in-band `.be-lang-switch` already look the same (2026-10-08) but are migration aliases — new screens MUST NOT start on them.
 - When a screen needs an on/off choice (active, MwSt-Zeile) → MUST use `.be-switch`; MUST NOT use a toggling button or a checkbox-as-button for it (`.be-choice` stays the SELECTION control, see above).
 - When ONE page or form has sections the user switches between (the Mandant) → MUST use radio tabs (`components/_radiotabs.scss`): the radios `.be-radiotabs__radio` (one group, same `name`, `data-tab` = 1..n) inside `.be-radiotabs` BEFORE the panels `.be-radiotabs__panel` (same `data-tab`) as their siblings, the tabs `.be-viewtabs__tab be-viewtabs__tab--for` `<label for>` with the same `data-tab` (in the toolbar); the server renders `checked` on the tab to open (after a refused save: the tab of the first field error); the form SHOULD carry `novalidate` (a `required` field in a hidden panel blocks the submit silently). MUST NOT switch the panels with JavaScript, MUST NOT add screen-specific ids to the SCSS (the pattern matches by position, up to `$be-radiotabs-max` = 6), MUST NOT put two radio-tab sets on one shell page (the `:has()` rule would light both). Tabs that lead to another PAGE stay links (`.be-viewtabs__tab` `<a>`, the finance reports). **In a WINDOW** (ADR-047 — it lives outside `.be-shell`, there is no toolbar) the tab group `.be-viewtabs` MUST stand INSIDE `.be-radiotabs`, AFTER the radios (the sibling rule lights it, scoped to its own container — RADIOTABS-002), and the radio ids MUST carry the record (`<entity>-<id>-tab-n`): two open windows must not share a `for` target. (No window uses radio tabs since the order window's redesign of 2026-10-17; the variant stays in `_radiotabs.scss`.)
@@ -487,7 +599,63 @@ packages/module-backend/res/view/templates/
 
 ## known issues
 
-- **FONT-SCALE-LINEAR-001** — fixed 2026-11-26 (design-lab handoff, theme T2, accepted by the owner the same day). The font slider counted TWICE: `html { font-size: var(--font-size-md) }` made the root 14px × slider, and the tokens were `calc(<rem> × slider)` resolved against that root — slider² (measured: 1.4 = +96 % instead of +40 %). The token comments («12px / 13px / 14px …») held only for a 16px root; at 1.0 the real sizes were 10.5 / 11.4 / 12.25 / 13.1 / 15.75 / 17.5px. Now the root is `calc(0.875rem * var(--be-font-scale))` (unchanged 14px at 1.0, so spacing and the ~350 other rem values keep their layout) and the tokens are bare rem of that root: 12 / 13 / 14 / 15 / 18 / 20px at 1.0 — every token text about 14 % larger than before, the spacing the same. The slider runs 80–120 % (was 100–140), step 5, default 100 in the middle; `UserPreferences` clamps the stored value to 0.80–1.20 on read and write (was 1.0–1.4). The first build shipped 85–125 %, whose middle was 105 % (the owner measured a list cell of 13.65px with the slider in the middle) — corrected to 80–120 the same day. Stored values are NOT reset (owner decision 2026-11-26: leave them, the clamp is enough); an old 1.05–1.2 keeps its number (now linear — about the size it gave before: old 1.2 = body 17.6px, now 16.8px) and 1.25–1.4 read as 1.2. Measured with the real skeleton and `base.css` in headless Edge (`tests/backend-shell-browser.php` section F): body 11.2 / 14 / 16.8px and the smallest text 9.6 / 12 / 14.4px at 0.8 / 1.0 / 1.2, a list's name cell 10.4 / 13 / 15.6px, a capped button 10.4 / 13 / 13px, the capped service-panel INFO 9.6 / 12 / 12px; band, tab row, crumb, rail, badge keep one line, nothing clipped. Side effect: the action-cell menu's 24rem cap (SHELL-ADD-WIDTH-001) now holds about 14 % fewer characters before an item wraps. Not part of it (lab, not decided): one font family with tabular figures, one button height, single areas one step larger.
+- **RAIL-ALIGN-001** — added 2026-11-27 (owner, the order list as the reference). The rail's menu
+  started directly under «Dashboard» (SHELL-RAIL-TOP-001), so its first entry stood about a line
+  above the work side's first text line. Now its `padding-top` is ONE formula over the work side's
+  own paddings (`--be-work-top`, `--be-card-top`, `--be-step-pad` in `tokens/_spacing.scss`, also
+  used by `.be-list` / `.be-list__section` / `.be-list__step`) and three `:has()` flags set in
+  `_shell.scss` — see the rule. Cases: a screen with tabs IN THE TOOLBAR (every tab screen today —
+  orders, invoices, journals, reports …) has the same geometry as one without → aligned; a TAB ROW
+  (`.be-shell-tabs`, slot `tabs` — no screen uses it today) moves the work side down by
+  `--shell-tabs` + 1px and the menu follows (`--rail-tabs`) — deliberately breaking «the first menu
+  entry at the same y with and without a tab row» of SHELL-RAIL-TOP-001 for the MENU («Dashboard»
+  and the selection keep it); a rail-top SELECTION (the finance year) is 3rem high, more than lies
+  above the work side's first line: the formula goes negative and is clamped at 0 — the menu starts
+  right under the selection, 1.75rem − 1px lower than the line; aligning it would need the content to
+  move, so it is left (no per-screen hack). A work area that does not start with a standard list's
+  card (a form page, the Drive, an alert above the first card) gets the same offset, not measured.
+  Phone: 0. Fence to update: `tests/backend-shell-browser.php` section D («the first menu entry
+  directly under «Dashboard»», «the first menu entry at the same y with and without tabs (R1)»)
+  checks the old geometry. **Not seen in a browser yet.**
+- **LIST-TAB-TITLE-001 / LIST-FIND-HIDE-001 / VIEWTABS-SW-001** — added 2026-11-27 (owner, the order
+  list as the reference). A list with view tabs lost its section title (8 templates: orders, open
+  items, documents, Faktura-Journal, Belegjournal, Kreditorenjournal, outbox, app users — the card is
+  `role="region"` with the former title as `aria-label`); the header without title lays itself out
+  in `_list.scss`. The column magnifier is `opacity: 0` at rest (the journal list uses the same
+  partial, so it follows). In Schwarz-Weiss the active view tab is the «Fernblau» fill: the band's
+  tabs get `margin-block: var(--space-2)` and no 2px line in that palette, the first tab takes its
+  padding back as a negative margin (text on the edge, EDGE-001). **Not seen in a browser yet.**
+- **STATUS-SIGNS-001** — added 2026-11-27 (design-lab handoff «Statuszeichen, Schritt 1», owner
+  decisions the same day). A status is a sign before its word — badges, dashboard tile rows, flash
+  messages, field / form / dialog errors; tokens, places and decisions in [status signs](#status-signs).
+  Side effects: `.be-form__field-error` is a flex row now (sign + text; in a flex-column field it was
+  a block already — where it sits in a list cell after an input it moves to its own line); the
+  `.badge--muted` frame and every badge ground are gone, so `--muted` / `--info` / `--primary` look
+  the same (one sign, one word). **Not seen in a browser yet.**
+- **PALETTE-SW-001** — added 2026-11-26 (design-lab handoff «Farbpalette Schwarz-Weiss, Schritt 1»,
+  owner decisions the same day: 1 = B, 2 = yes now). An eighth palette `schwarzweiss` «Schwarz-Weiss»
+  (swatch `#000000`), values only — no component, markup or font size changed, no new role; the
+  seven others keep every value (compiled `base.css`: all their rules byte-identical). It is the
+  DEFAULT: `UserPreferences::DEFAULT_PALETTE = 'schwarzweiss'`, first in `Palettes::all()`; the
+  SCSS base stays Salbei. Values and fixed derived roles: see «backend theme tokens». Island: in
+  light mode its column 1 is white with a black right-hand line (one selector group next to the six
+  palette island blocks in `_shell.scss`, plus `border-right` on `.be-shell-topbar__mod` for this
+  palette); in dark mode, as for every palette, there is no island — the column takes the
+  palette's dark `--be-surface`, the action cell the dark accent (white) with `--be-on-accent-page`
+  and the shared light `--be-confirm-island`. Deviates on purpose, for this palette only, from
+  ADR-033 rev. 2026-10-08 («the island's light accent with dark ink; confirm a light green in every
+  palette») and from «derived once for every palette» (ADR-051 decision 2 / ADR-033 rev.). Known
+  limits, reported for the next steps, not fixed: `--be-muted` = `--be-text`, so muted text, inactive
+  tabs and the crumb no longer recede; an active rail entry, area tile or palette button stands out
+  only by `--be-accent-soft` (`#e4e4e3`; in dark `#2a2a2a` = the column's surface, i.e. not at
+  all); success / warning / info / primary badges differ by a grey shade only (gone since
+  STATUS-SIGNS-001 — a badge is a sign + word); the active language
+  option (`.be-lang-switch__option--active`) is white on white in dark mode; `.be-btn--primary`
+  hover (`brightness(1.1)`) does nothing on black. Users who saved any preference before
+  2026-11-26 keep the palette stored then (see «backend theme tokens»). **Not seen in a browser yet.**
+
+- **FONT-FLAT-001** — owner decision 2026-11-26 (afternoon), REPLACES the root, the range and the tiered sizes of FONT-SCALE-LINEAR-001 below (its «slider acts once, on the root» stays): step back to ONE measure. The root is `calc(1rem * var(--be-font-scale))` = 16px at 100 % (was 14px); the slider runs 85–115 %, step 5, default 100 in the middle (7 stops; was 80–120); EVERY font size is 16px at 100 % — all six `--font-size-*` tokens are `1rem`, the raw sizes in the backend SCSS, the DMS (`--dms-font-size-*` = `1rem`, `_media.scss`) and the upload component became the token or `1rem`, and the inline `font-size` in backend-rendered templates is gone (text inherits 16px); the cap left `.be-btn`; the heights and widths that hold text are rem (band/top bar 3rem, crumb 2rem, tab row 2.375rem, rail 15.5rem — `split.js` resolves a rem width for the shell's grid-overlay handle —, the rail's node and filter 2rem (were 26px, sized for ~12px text), the service panel 20rem (was `280px × slider`, a second slider factor; 320px at 100 % for the larger text), the module panel 22.5rem, the window and help title-bar buttons, the help trigger 1.875rem, the window title bar's «Hilfe» 2rem (was 24px)). The exceptions (glyphs, avatar initials, the environment pill) are listed under «Font sizes and the font slider» above. Resolves the pending «font sizes in px» of the morning: the two px sizes were glyphs (the assistant trigger's ✦ `13px`, the help trigger's «?» badge `12px`) and are rem now, so they follow the slider; no px font size is left in the backend SCSS. Stored values are not migrated: 0.80 (stored under the 80–120 range) reads 0.85, above 1.15 reads 1.15. The tiers come back with the owner (`## pending`). Fence: `tests/backend-shell-browser.php` section F (16px × slider for body, badge, list name and an uncapped button; the capped INFO 16 × min(slider, 1); band 48px × slider; panel 320px × slider) and section P (the clamp).
+- **FONT-SCALE-LINEAR-001** — fixed 2026-11-26 (design-lab handoff, theme T2, accepted by the owner the same day); root, range and sizes superseded the same afternoon by FONT-FLAT-001 above — what follows is the morning's state. The font slider counted TWICE: `html { font-size: var(--font-size-md) }` made the root 14px × slider, and the tokens were `calc(<rem> × slider)` resolved against that root — slider² (measured: 1.4 = +96 % instead of +40 %). The token comments («12px / 13px / 14px …») held only for a 16px root; at 1.0 the real sizes were 10.5 / 11.4 / 12.25 / 13.1 / 15.75 / 17.5px. Now the root is `calc(0.875rem * var(--be-font-scale))` (unchanged 14px at 1.0, so spacing and the ~350 other rem values keep their layout) and the tokens are bare rem of that root: 12 / 13 / 14 / 15 / 18 / 20px at 1.0 — every token text about 14 % larger than before, the spacing the same. The slider runs 80–120 % (was 100–140), step 5, default 100 in the middle; `UserPreferences` clamps the stored value to 0.80–1.20 on read and write (was 1.0–1.4). The first build shipped 85–125 %, whose middle was 105 % (the owner measured a list cell of 13.65px with the slider in the middle) — corrected to 80–120 the same day. Stored values are NOT reset (owner decision 2026-11-26: leave them, the clamp is enough); an old 1.05–1.2 keeps its number (now linear — about the size it gave before: old 1.2 = body 17.6px, now 16.8px) and 1.25–1.4 read as 1.2. Measured with the real skeleton and `base.css` in headless Edge (`tests/backend-shell-browser.php` section F): body 11.2 / 14 / 16.8px and the smallest text 9.6 / 12 / 14.4px at 0.8 / 1.0 / 1.2, a list's name cell 10.4 / 13 / 15.6px, a capped button 10.4 / 13 / 13px, the capped service-panel INFO 9.6 / 12 / 12px; band, tab row, crumb, rail, badge keep one line, nothing clipped. Side effect: the action-cell menu's 24rem cap (SHELL-ADD-WIDTH-001) now holds about 14 % fewer characters before an item wraps. Not part of it (lab, not decided): one font family with tabular figures, one button height, single areas one step larger.
 - **DARK-NATIVE-001** — fixed 2026-11-12 (owner's browser test, dark theme: the option list of the order window's STATUS select — «Terminauftrag» … — white on white, readable only on hover). What the BROWSER draws — the option list of a native `<select>`, the date/time picker, a control's default ground and ink, scrollbars — does not take page CSS; it follows `color-scheme`, and the backend declared none, so it was drawn light under the dark theme. A select whose text inherits the theme's light ink without an option rule of its own (`.be-status-field select`: `color: inherit; background: transparent`; only `select.be-input option` named both) then showed light text on the light list. Root cause in `tokens/_colors.scss` (no `color-scheme` with the theme), not in the select. Fix: `color-scheme: light` on `.be`, `dark` on `[data-be-theme="dark"]` — the same element and attribute the server renders and `appearance.js` switches, so the theme switch follows without a reload; the light theme's dark island (`_shell.scss`) declares `dark`, its light card (`shell-card`) `light` again. There is no «system» theme in the backend (`UserPreferences::isDarkMode()` is light or dark), so `prefers-color-scheme` has nothing to answer here. Verified: `tests/core-js-windows-browser.mjs` section 5 (computed `color-scheme` of the status select and a date input, dark and after the switch to light).
 - **ROWS-001** — added 2026-10-18 (first user: the order's positions, owner decisions 2026-10-18,
   `order.md` «Positions block»). Don't build row add / remove / reorder per screen: `components/_rows.scss`
@@ -975,7 +1143,7 @@ packages/module-backend/res/view/templates/
 
 - **ICON-SPRITE-001** — added 2026-06-11. Backend icons were inline `<svg>` duplicated across 11 templates (48 occurrences), several Content lists even carrying a local `$svg = [...]` array of identical glyphs. Replaced by a single SVG sprite: `res/view/templates/partials/icon-sprite.tpl.php` defines every icon once as `<symbol id="icon-NAME" viewBox="0 0 24 24">` (all Lucide 24×24), loaded once per page via the layout `iconSprite` body section ($iconSprite in the skeleton). Templates now reference `<svg class="be-icon"><use href="#icon-NAME"/></svg>`. Presentation (no fill, `stroke: currentColor`, uniform `stroke-width:2`, round caps) lives once in `components/_icon.scss` (`.be-icon`); symbols carry geometry only, size via the `<svg>` width/height. Naming convention documented in [`../01-handbook/conventions.md`](../01-handbook/conventions.md) (`icon-{name}`, semantic, kebab-case). Consolidated duplicate glyphs to one per concept: `edit` = square-pen, `trash` = trash-2 (the dominant list variant — the header's two slightly different glyphs now match). Stroke widths unified to 2 (some were 1.6–2.5). To add an icon: add one `<symbol>` to the sprite — nothing else.
 
-- **FONT-CAP-001** — added 2026-06-11. The appearance font-size slider (`--be-font-scale`, 1.0–1.4×) scales every `--font-size-*` token, which blew up dense/technical content (e.g. the service-panel INFO mono paths) and button labels at high values. Added an opt-in cap: `tokens/_typography.scss` now defines the rem base values once in a `font-size-vars($scale)` mixin (used for the global `:root` scale), plus `--be-font-scale-cap` (currently `1.0` = frozen at base size) and a `font-size-capped` mixin (`min(--be-font-scale, --be-font-scale-cap)`). Two consumers: the `.be-font-cap` utility (`base/_utilities.scss`, applied in markup — currently the service-panel INFO `<dl>`) and `.be-btn` (capped by default, covers `.be-btn--sm`). **To cap another region:** add `class="be-font-cap"` — capped regions follow the slider only up to `--be-font-scale-cap`, then hold (at 1.0 they stay at base size, ignoring the slider). The cap is configured once via `--be-font-scale-cap`. Also in this pass: `.backend-service-panel` got `max-height: calc(100vh - 72px)` + `overflow: hidden auto` (expanded sections were unreachable, no scroll), and slim backend scrollbars were added globally in `base/_elements.scss` (`scrollbar-width: thin` + 8px `::-webkit-scrollbar`, thumb `--be-line`). **Changed 2026-11-26 (FONT-SCALE-LINEAR-001):** the slider runs 0.80–1.20 (the first build of the day shipped 0.85–1.25, whose middle was 1.05; corrected the same day) and lives in the root font size, so `font-size-capped` now divides it out again — `rem × min(slider, cap) / slider`; the global set has no factor (`font-size-vars` without argument). Owner decision 2026-11-26: below 1.0 capped regions SHRINK with the slider, the cap only limits growth upwards (with the cap at `1.0`: same size as the rest at 0.8, the 1.0 size at 1.2). Before, the cap never really held: its tokens were multiplied by a root that had already grown with the slider.
+- **FONT-CAP-001** — added 2026-06-11. The appearance font-size slider (`--be-font-scale`, 1.0–1.4×) scales every `--font-size-*` token, which blew up dense/technical content (e.g. the service-panel INFO mono paths) and button labels at high values. Added an opt-in cap: `tokens/_typography.scss` now defines the rem base values once in a `font-size-vars($scale)` mixin (used for the global `:root` scale), plus `--be-font-scale-cap` (currently `1.0` = frozen at base size) and a `font-size-capped` mixin (`min(--be-font-scale, --be-font-scale-cap)`). Two consumers: the `.be-font-cap` utility (`base/_utilities.scss`, applied in markup — currently the service-panel INFO `<dl>`) and `.be-btn` (capped by default, covers `.be-btn--sm`). **To cap another region:** add `class="be-font-cap"` — capped regions follow the slider only up to `--be-font-scale-cap`, then hold (at 1.0 they stay at base size, ignoring the slider). The cap is configured once via `--be-font-scale-cap`. Also in this pass: `.backend-service-panel` got `max-height: calc(100vh - 72px)` + `overflow: hidden auto` (expanded sections were unreachable, no scroll), and slim backend scrollbars were added globally in `base/_elements.scss` (`scrollbar-width: thin` + 8px `::-webkit-scrollbar`, thumb `--be-line`). **Changed 2026-11-26 (FONT-SCALE-LINEAR-001):** the slider runs 0.80–1.20 (the first build of the day shipped 0.85–1.25, whose middle was 1.05; corrected the same day) and lives in the root font size, so `font-size-capped` now divides it out again — `rem × min(slider, cap) / slider`; the global set has no factor (`font-size-vars` without argument). Owner decision 2026-11-26: below 1.0 capped regions SHRINK with the slider, the cap only limits growth upwards (with the cap at `1.0`: same size as the rest at 0.8, the 1.0 size at 1.2). Before, the cap never really held: its tokens were multiplied by a root that had already grown with the slider. **Changed again 2026-11-26 afternoon (FONT-FLAT-001):** `.be-btn` is no longer capped — a button grows with the slider like every other text. The utility and the mixin stay for the dense info readouts (the service-panel INFO `<dl>` and its row badge): with the flat tokens and the 0.85–1.15 range a capped region is 16px from 100 % to 115 % and 13.6px at 85 %. The cap only reaches text sized through a `--font-size-*` token (the avatar's `.be-font-cap` was removed — its initials have a raw size, the class did nothing).
 
 - **CSS-BACKEND-TOKENS-001** — resolved 2026-06-11. Hardcoded color values in components replaced by `--be-*` tokens. (1) Focus-rings were hardcoded to the werkbank accent `rgba(63, 90, 58, …)` / danger `rgba(220, 38, 38, …)` — they stayed green/red regardless of palette. Now `color-mix(in srgb, var(--be-accent|--be-danger) X%, transparent)` in `_forms.scss` (5×) and `_switch.scss` (1×), so they follow the active palette. (2) `_alerts.scss` `.be-modal__alert--error` rgba danger → `color-mix(var(--be-danger) …)`. (3) Service-panel logout `#a94434` unified to `var(--be-danger)` (single danger tone backend-wide). (4) New token `--be-on-accent: #ffffff` (`:root` only, palette/theme-independent) for the white switch-thumb + choice-checkmark on top of `--be-accent`. (5) Dead `var(--token, #fallback)` fallbacks removed in `_forms.scss` / `_switch.scss` (tokens are always loaded; two fallbacks were even stale). **Deliberately NOT changed:** the component-tuned inline shadows in `_modal.scss` (`0 20px 60px`), `_flash-messages.scss`, `_popup-messages.scss`, `_switch.scss` thumb — none match the 4-step `--shadow-*` scale and snapping them would visibly degrade the design (e.g. the heavy double-layer `--shadow-sm` on a 16px thumb). Do not "tokenize" these.
 
@@ -991,7 +1159,35 @@ packages/module-backend/res/view/templates/
 
 ## pending
 
-- **Font sizes in px (FONT-SCALE-LINEAR-001, found 2026-11-26, not converted)** — a font size in px ignores the slider. Two in the backend SCSS: `components/_assistant-host.scss` (`13px`) and `components/_help-host.scss` (`12px`). Owner to decide whether they become `--font-size-*` tokens (or stay fixed on purpose, like chrome). Size XS.
+- **Owner's look at the list decisions of 2026-11-27** (LIST-TAB-TITLE-001, the step box, RAIL-ALIGN-001, VIEWTABS-SW-001, LIST-FIND-HIDE-001 — built, not seen in a browser): `order/order/list` (tab «Termin» with an open Faktura-Journal: the step box first in the card, the count right; a blocked journal: the red sign and «— gesperrt (neu fakturieren)»), `finance/debtor/list` (OP-Total and count right without a title), the menu's first entry on the card's first line at slider 85 / 100 / 115 %, a finance screen with the year select (the menu stays under it — not aligned, by the formula), the active tab fill in Schwarz-Weiss light and dark and the Mandant's radio tabs, the magnifier on hover / Tab / with an active search. Open questions for the owner: (1) a phone has no hover — the magnifier stays invisible there unless the column is searched (a tap on a row cell still opens the search); keep, or show it under `@media (hover: none)`? (2) The step box shows in «Termin» / «Geliefert» only (where «Fakturieren …» fills the journal) — also in «Fakturiert»? (3) The menu moves by the step box's border + padding (.5rem + 1px) when switching to a tab without a step box. (4) Lists whose title still carries the tab's word plus facts — the bank movements («Bewegungen zu prüfen · Konto … · Saldo …»), the change log («Änderungsprotokoll» / «Abschlüsse und MWST» · Geschäftsjahr), the finance reports («Saldobilanz 2026 · dates», printed) — kept; drop the word, keep the facts?
+- **Status signs, the next steps (design-lab handoff 2026-11-27, STATUS-SIGNS-001)** — each its own
+  step, after the owner has looked at step 1 (`system/dashboard/overview`, `order/order/list`,
+  `finance/debtor/list`, a form with a required-field error, a message after saving; light and
+  dark, slider 85 / 100 / 115 %): danger as the lab's TWO-COLOUR image `--be-sign-danger-img`
+  (white «!» on the disc, white rim in dark) once the red is decided — today it would carry a fixed
+  `#991b1b` beside `--be-danger` `#dc2626`; `.be-overview__sum` (the dashboard's «2 dringend / 12
+  offen» in place of the legend, theme dashboard); the list signs `.be-list__sign--open` / `--paid`
+  (`.be-list__step` is built since 2026-11-27 — the step box, `partials/listStep`); `.badge--partial` (teilbezahlt, its own SVG — the debtor list shows
+  «teilbezahlt» as `--info` meanwhile); the contact tree's `--be-sign-org` / `--be-sign-person`
+  (`.be-tree__row--org` / `--person`). Seen while building, owner to decide: the DMS download
+  notice «wird vorbereitet …» is a `flash-msg--info` and now wears the «erledigt» ring; the
+  statistics error alert (`StatsController/listAction`) carries a «⚠️» in its text beside the new
+  sign; `--be-sign-cancelled` has no user yet.
+- **Schwarz-Weiss, the next steps (design-lab handoff 2026-11-26, PALETTE-SW-001)** — each its own
+  step, owner decides after looking at step 1 (`system/dashboard/overview`, `order/order/list`,
+  `finance/debtor/list`, `finance/mandator/edit`, a dialog; light and dark): new roles
+  `--be-active` / `--be-on-active` (light `#4d6f8f` / `#ffffff`, dark `#ffffff` / `#000000`) for
+  everything active — BUILT 2026-11-27 for the active VIEW TAB only (VIEWTABS-SW-001); candidates
+  still on the old look: the group tabs `.be-tabs__tab--active` (navigation / metadata lists), the
+  rail's active entry `.backend-tree-node--active`, the area-select item `[aria-current]`, the active
+  language option `.be-lang-switch__option--active`, the palette buttons —, `--be-control-edge` (light `#000000`, dark `#ffffff`) as the outline of
+  low-contrast controls, `--be-on-danger`; danger as a FILL with white ink (`#991b1b`, filled delete
+  button); status as symbols instead of coloured pills (step 1 built 2026-11-27, STATUS-SIGNS-001 —
+  next steps in their own entry below), the select arrow; more letter-spacing in
+  dark mode; the 2–3 high-contrast alternative palettes and dropping existing palettes. Also open:
+  amend ADR-033 rev. 2026-10-08 / ADR-051 for the Schwarz-Weiss island exception, and whether users
+  who carry the old default as a stored palette move to the new one.
+- **Re-introduce the size tiers with the owner (heads, hints, badges, titles) — flat 16px baseline since 2026-11-26 (FONT-FLAT-001).** Every backend font size is 16px at slider 100 % until then; the token names (`--font-size-xs` … `2xl`) still mark where a tier was. Decide per tier with the owner, then set the token, not the places. The 80–120 % range and the tiered table of the same morning are void.
 - **ROW-ICONS-LEAD-001 — the remaining trailing row actions** (rule of 2026-11-20, backend-screen.md §4; fixed the same day: finance journal «Beleg», posted invoice journals «Journalliste (PDF)», dunning runs ⋮). Still trailing, owner to decide whether and when: (1) the v1 trees with `.be-tree__tools` at the end — Service › Jobs «Jetzt starten» (`JobController/_job.tpl.php`), Artikel › Warengruppen «Untergruppe anlegen» (`ProductGroupController/_row.tpl.php`), Service › Import inbox «Ziel» + «Plan berechnen» (`ImportController/listAction.tpl.php`, a select + text button, not an icon); the v1 grid places `.be-tree__route` / tools by column number (`_list.scss` ~790–823), so moving them means a lead slot in the tree component, best together with the v1 → v2 migration (LIST-V2-001); (2) the window sublists with `.be-list__table--actions` (a trailing `auto` track): Kontakt addresses «Bearbeiten» / «Entfernen», MWST-Code rates «Entfernen» / «fix» — text buttons, not icons; the `--actions` slot itself is trailing by definition.
 - **The other «…» confirm buttons (ADR-033 addendum 2026-10-18)** — owner to decide: the list SELECTION BARS (order and invoice list «Fakturieren …», dunning «Mahnlauf starten») still FILL (`.be-btn--confirm`) while the order window and the invoice form take `.be-btn--confirm-open`. (The second question — `cancelKind` 'quiet' for other window rows — is settled: 'quiet' is the `modalActions` default since 2026-10-22.)
 - **Service › Import: «Plan berechnen» kind** — the target table says confirm, `ImportController/list.act.tpl.php` renders `be-btn--primary` with `icon-plus` (a create look for a computation). Owner to decide which one is right; then align table or template. Size XS.
